@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>115 Task Master Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --primary: #3b82f6; --bg: #f3f4f6; --card: #fff; --text: #1f2937; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; height: 100vh; display: flex; flex-direction: column; }
+        
+        /* Main App */
+        .app-container { max-width: 800px; margin: 40px auto; width: 90%; flex: 1; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .card { background: var(--card); padding: 24px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        
+        /* Forms */
+        input, select, button { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #e5e7eb; border-radius: 6px; box-sizing: border-box; }
+        button { background: var(--primary); color: white; border: none; cursor: pointer; font-weight: 600; transition: opacity 0.2s; }
+        button:hover { opacity: 0.9; }
+        .btn-outline { background: transparent; color: var(--text); border: 1px solid #e5e7eb; }
+        .btn-danger { background: #ef4444; color: white; border: none; }
+        .btn-edit { background: #3b82f6; color: white; border: none; }
+        .btn-run { background: #10b981; color: white; border: none; } /* 新增运行按钮样式 */
+        .btn-refresh { background: #8b5cf6; color: white; border: none; } /* 扫描按钮样式 */
+        
+        /* Task List */
+        .task-item { background: #f9fafb; padding: 15px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid #ccc; }
+        .task-item.running { border-left-color: #3b82f6; }
+        .task-item.success { border-left-color: #10b981; }
+        .task-item.error { border-left-color: #ef4444; }
+        .task-item.scheduled { border-left-color: #8b5cf6; } /* 定时任务颜色 */
+
+        .task-header { display: flex; justify-content: space-between; align-items: flex-start; }
+        .task-link { font-size: 1.05rem; font-weight: 600; color: var(--primary); text-decoration: none; display: inline-block; margin-bottom: 4px; }
+        .task-link:hover { text-decoration: underline; }
+        .task-meta { font-size: 0.85rem; color: #6b7280; display: flex; gap: 10px; margin-bottom: 6px; }
+        .task-log { font-size: 0.8rem; color: #4b5563; background: #e5e7eb; padding: 4px 8px; border-radius: 4px; display: inline-block; margin-top: 4px;}
+
+        .cron-preview { font-family: monospace; background: #1f2937; color: #10b981; padding: 10px; border-radius: 6px; margin-top: 10px; font-size: 0.85rem; }
+
+        /* Modal */
+        .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 200; }
+        .modal-content { background: white; padding: 20px; border-radius: 12px; width: 450px; max-height: 80vh; display: flex; flex-direction: column; overflow-y: auto; }
+        
+        .row { display: flex; gap: 10px; }
+        .file-item:hover { background-color: #f3f4f6; }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <div class="header">
+            <h3>🤖 115 转存机器人</h3>
+            <div style="display:flex; gap:10px;">
+                <button onclick="scanBaidu()" class="btn-refresh" style="width: auto; padding: 6px 12px; font-size: 0.85rem;">扫描百度网盘</button>
+                <button onclick="openAdminModal()" class="btn-outline" style="width: auto; padding: 6px 12px; font-size: 0.85rem;">⚙️ 管理后台</button>
+            </div>
+        </div>
+
+        <!-- 管理员设置面板 (默认隐藏) -->
+        <div class="card" id="adminPanel" style="display:none; border: 2px solid #3b82f6;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                <h4 style="margin:0;">🔧 管理员设置</h4>
+                <button onclick="logoutAdmin()" class="btn-danger" style="width:auto; padding:4px 10px; font-size:0.8rem;">退出登录</button>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <label style="font-size:0.8rem;">115 Cookie</label>
+                <input type="text" id="cookieInput" placeholder="输入 Cookie (UID/CID/SEID...)">
+            </div>
+
+            <div style="margin-bottom: 10px; border-top: 1px solid #eee; padding-top: 10px;">
+                <label style="font-size:0.8rem; font-weight:bold;">⚙️ 功能开关</label>
+                <div style="margin-top:5px;">
+                    <label><input type="checkbox" id="setEnableCronFeature" style="width:auto;"> 启用定时任务功能 (全局)</label>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 10px; border-top: 1px solid #eee; padding-top: 10px;">
+                <label style="font-size:0.8rem; font-weight:bold;">📂 分类保存路径设置</label>
+                
+                <div style="margin-top:5px;"><label style="font-size:0.75rem;">📺 电视剧</label></div>
+                <div style="display:flex; gap:5px;">
+                    <input type="text" id="catTvName" readonly style="background:#eee; margin-bottom:5px;">
+                    <button onclick="openFolderPicker('tv')" class="btn-outline" style="width:60px; margin-bottom:5px;">选择</button>
+                </div>
+                
+                <div style="margin-top:5px;"><label style="font-size:0.75rem;">🎬 电影</label></div>
+                <div style="display:flex; gap:5px;">
+                    <input type="text" id="catMovieName" readonly style="background:#eee; margin-bottom:5px;">
+                    <button onclick="openFolderPicker('movie')" class="btn-outline" style="width:60px; margin-bottom:5px;">选择</button>
+                </div>
+
+                <div style="margin-top:5px;"><label style="font-size:0.75rem;">🎤 综艺</label></div>
+                <div style="display:flex; gap:5px;">
+                    <input type="text" id="catVarietyName" readonly style="background:#eee; margin-bottom:5px;">
+                    <button onclick="openFolderPicker('variety')" class="btn-outline" style="width:60px; margin-bottom:5px;">选择</button>
+                </div>
+
+                <div style="margin-top:5px;"><label style="font-size:0.75rem;">🌸 动漫</label></div>
+                <div style="display:flex; gap:5px;">
+                    <input type="text" id="catAnimeName" readonly style="background:#eee; margin-bottom:5px;">
+                    <button onclick="openFolderPicker('anime')" class="btn-outline" style="width:60px; margin-bottom:5px;">选择</button>
+                </div>
+
+                <div style="margin-top:5px;"><label style="font-size:0.75rem;">📦 其他</label></div>
+                <div style="display:flex; gap:5px;">
+                    <input type="text" id="catOtherName" readonly style="background:#eee; margin-bottom:5px;">
+                    <button onclick="openFolderPicker('other')" class="btn-outline" style="width:60px; margin-bottom:5px;">选择</button>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 10px; border-top: 1px solid #eee; padding-top: 10px;">
+                <label style="font-size:0.8rem;">OpenList 集成 (手动扫描)</label>
+                <input type="text" id="olUrl" placeholder="OpenList 地址 (如 http://192.168.1.5:5244)">
+                <input type="text" id="olToken" placeholder="API Token (后台-设置-其他-令牌)">
+                <div class="row">
+                    <div style="flex:1">
+                        <label style="font-size:0.7rem; color:#666;">OpenList 挂载路径 (对应上方根目录)</label>
+                        <input type="text" id="olMountPrefix" placeholder="例如 /115网盘 (将自动替换根目录路径)">
+                    </div>
+                </div>
+            </div>
+            <div style="margin-bottom: 10px; border-top: 1px solid #eee; padding-top: 10px;">
+                <label style="font-size:0.8rem;">管理员账号设置</label>
+                <div class="row">
+                    <input type="text" id="setAdminUser" placeholder="用户名">
+                    <input type="text" id="setAdminPass" placeholder="密码">
+                </div>
+            </div>
+            <button onclick="saveSettings()">保存设置</button>
+        </div>
+
+        <div class="card">
+            <h3>➕ 新建智能任务</h3>
+            <div style="font-size:0.85rem; color:#666; margin-bottom:12px; background:#f3f4f6; padding:8px; border-radius:6px;">
+                💡 <b>提示</b>：任务名称为必填项，用于重命名转存后的文件夹。
+            </div>
+            
+            <label style="font-size:0.8rem; color:#666;">视频名称</label>
+            <div class="row">
+                <input type="text" id="taskName" placeholder="必填">
+            </div>
+            
+            <label style="font-size:0.8rem; color:#666;">分享链接</label>
+            <input type="text" id="shareUrl" placeholder="https://115cdn.com/s/...">
+            
+            <label style="font-size:0.8rem; color:#666;">提取码</label>
+            <input type="text" id="accessCode" placeholder="可选">
+
+            <div style="margin-bottom: 15px;">
+                <label style="font-size:0.8rem; color:#666; display:block; margin-bottom:5px;">保存分类 (自动重命名文件夹)</label>
+                <div style="display:flex; gap:15px; flex-wrap:wrap;">
+                    <label><input type="radio" name="category" value="tv" style="width:auto;"> 📺 电视剧</label>
+                    <label><input type="radio" name="category" value="movie" style="width:auto;"> 🎬 电影</label>
+                    <label><input type="radio" name="category" value="variety" style="width:auto;"> 🎤 综艺</label>
+                    <label><input type="radio" name="category" value="anime" style="width:auto;"> 🌸 动漫</label>
+                    <label><input type="radio" name="category" value="other" style="width:auto;"> 📦 其他</label>
+                </div>
+            </div>
+
+            <div id="createTaskCronSection" style="background: #f0f9ff; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #bae6fd; display:none;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <label style="font-size:0.9rem; font-weight:700; color:#0369a1; margin:0;">⏱️ 定时检查更新</label>
+                    <label style="font-size:0.85rem; color:#0284c7; display:flex; align-items:center; gap:5px; cursor:pointer;">
+                        <input type="checkbox" id="enableCron" onchange="toggleCronInput()" style="width:auto; margin:0;"> 启用定时
+                    </label>
+                </div>
+                <div id="cronInputBox" style="display:none;">
+                    <input type="text" id="cron_hours" placeholder="例如: 8,20 (代表每天8点和20点)" oninput="updateCronPreview('create')">
+                    <div class="cron-preview" id="cronResult">执行策略: 仅一次 (立即执行)</div>
+                </div>
+            </div>
+
+            <button onclick="createTask()">🚀 开始任务</button>
+        </div>
+
+        <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                <h3 style="margin:0;">📋 任务队列</h3>
+                <button id="btnClearAll" onclick="clearAllTasks()" class="btn-danger" style="width:auto; padding:4px 10px; font-size:0.8rem; display:none;">🗑️ 清空队列</button>
+            </div>
+            <div id="taskList"></div>
+        </div>
+    </div>
+
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                <strong>✏️ 编辑任务</strong>
+                <span onclick="document.getElementById('editModal').style.display='none'" style="cursor:pointer; font-size:1.5rem;">&times;</span>
+            </div>
+            
+            <input type="hidden" id="editTaskId">
+            
+            <label style="font-size:0.8rem; color:#666;">任务名称</label>
+            <input type="text" id="editTaskName" placeholder="任务名称">
+            
+            <label style="font-size:0.8rem; color:#666;">分享链接</label>
+            <input type="text" id="editShareUrl" placeholder="分享链接">
+            
+            <label style="font-size:0.8rem; color:#666;">提取码</label>
+            <input type="text" id="editAccessCode" placeholder="提取码 (可选)">
+            
+            <div id="editTaskCronSection" style="background: #f0f9ff; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #bae6fd; display:none;">
+                <label style="font-size:0.9rem; font-weight:700; color:#0369a1; display:flex; justify-content:space-between;">
+                    <span>⏱️ 每天定时检查 (小时)</span>
+                    <span style="font-weight:400; font-size:0.8rem; color:#0284c7; cursor:pointer;" onclick="clearCron('edit')">[ 重置 ]</span>
+                </label>
+                <div style="margin-top: 10px;">
+                    <input type="text" id="edit_cron_hours" placeholder="例如: 8,20 (代表每天8点和20点)" oninput="updateCronPreview('edit')">
+                    <div class="cron-preview" id="editCronResult">执行策略: 未变更</div>
+                </div>
+            </div>
+
+            <button onclick="updateTask()">保存修改</button>
+        </div>
+    </div>
+
+    <!-- Admin Login Modal -->
+    <div id="adminLoginModal" class="modal">
+        <div class="modal-content" style="width: 300px;">
+            <h3 style="margin-top:0;">管理员验证</h3>
+            <input type="text" id="adminUser" placeholder="用户名 (默认 admin)" style="margin-bottom:10px;">
+            <input type="password" id="adminPwd" placeholder="密码 (默认 admin)">
+            <button onclick="doAdminLogin()">确认</button>
+            <button onclick="document.getElementById('adminLoginModal').style.display='none'" class="btn-outline" style="margin-top:10px;">取消</button>
+        </div>
+    </div>
+
+    <div id="folderModal" class="modal">
+        <div class="modal-content" style="width: 600px; max-height: 85vh;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                <strong>📂 文件管理</strong>
+                <span onclick="document.getElementById('folderModal').style.display='none'" style="cursor:pointer; font-size:1.5rem;">&times;</span>
+            </div>
+            
+            <!-- Toolbar -->
+            <div style="display:flex; gap:10px; margin-bottom:10px; padding-bottom:10px; border-bottom:1px solid #eee; align-items: center;">
+                <input type="text" id="newFolderName" placeholder="新建文件夹名称" style="margin-bottom:0; font-size:0.9rem; flex:1; padding: 0 10px; height: 38px;">
+                <button onclick="createNewFolder()" class="btn-outline" style="width:auto; padding:0 12px; margin-bottom:0; height: 38px; display: flex; align-items: center;">➕ 新建</button>
+                <div style="width: 1px; height: 24px; background: #eee;"></div>
+                <button onclick="deleteSelected()" class="btn-danger" style="width:auto; padding:0 12px; margin-bottom:0; height: 38px; display: flex; align-items: center;">🗑️ 删除选中</button>
+            </div>
+
+            <div id="folderBreadcrumb" style="font-size:0.85rem; color:#2563eb; margin-bottom:10px; font-weight:500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">/</div>
+            <div id="folderList" style="flex:1; overflow-y:auto; border:1px solid #e5e7eb; border-radius:6px; margin-bottom:10px; background: #f9fafb;"></div>
+            
+            <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                <span style="font-size: 0.8rem; color: #666; align-self: center;" id="selectionCount"></span>
+                <button onclick="confirmFolder()" style="width: auto;">✅ 选择当前目录</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Result Modal -->
+    <div id="resultModal" class="modal">
+        <div class="modal-content" style="width: 600px; max-height: 80vh;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                <strong>📜 扫描结果详情</strong>
+                <span onclick="document.getElementById('resultModal').style.display='none'" style="cursor:pointer; font-size:1.5rem;">&times;</span>
+            </div>
+            <textarea id="resultText" style="width:100%; height:300px; font-family:monospace; font-size:0.85rem; padding:10px; border:1px solid #e5e7eb; border-radius:6px; background:#f9fafb; color:#374151; resize:vertical;" readonly></textarea>
+            <div style="text-align:right; margin-top:10px;">
+                <button onclick="document.getElementById('resultModal').style.display='none'">关闭</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    let adminToken = localStorage.getItem('adminToken');
+    let curCid = "0", curPathName = "根目录";
+    let settingCatKey = null; // 当前正在设置哪个分类的路径
+    let catSettings = {}; // 缓存分类配置
+    let allTasks = [];      // 缓存任务列表用于编辑回显
+    let selectedFiles = new Set(); // 选中的文件ID集合
+
+    // 初始化
+    (function init() {
+        loadPublicSettings(); // 加载公开配置(决定UI显示)
+        if(adminToken) {
+            document.getElementById('adminPanel').style.display = 'block';
+            loadSettings();
+        }
+        loadTasks();
+        setInterval(loadTasks, 5000);
+    })();
+
+    // 【新增】加载公开配置，控制定时功能UI显示
+    async function loadPublicSettings() {
+        const res = await request('/public-settings');
+        if(res.success) {
+            const show = res.enableCronFeature;
+            const display = show ? 'block' : 'none';
+            document.getElementById('createTaskCronSection').style.display = display;
+            document.getElementById('editTaskCronSection').style.display = display;
+        }
+    }
+
+    async function request(endpoint, method='GET', body=null) {
+        const headers = { 'Content-Type': 'application/json' };
+        if(adminToken) headers['x-admin-token'] = adminToken;
+        try {
+            const res = await fetch(`/api${endpoint}`, { method, headers, body: body ? JSON.stringify(body) : null });
+            if(res.status === 403) { 
+                // 权限失效，但不强制刷新页面，只是隐藏管理功能
+                localStorage.removeItem('adminToken');
+                adminToken = null;
+                document.getElementById('adminPanel').style.display = 'none';
+                return { success: false, msg: "管理员权限失效" }; 
+            }
+            return await res.json();
+        } catch(e) { console.error(e); return { success: false, msg: "网络错误" }; }
+    }
+
+    // --- 管理员逻辑 ---
+    function openAdminModal() {
+        if(adminToken) {
+            // 已登录则切换显示/隐藏
+            const panel = document.getElementById('adminPanel');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+            if(panel.style.display === 'block') loadSettings();
+        } else {
+            document.getElementById('adminLoginModal').style.display = 'flex';
+        }
+    }
+
+    function logoutAdmin() {
+        localStorage.removeItem('adminToken');
+        adminToken = null;
+        document.getElementById('adminPanel').style.display = 'none';
+        loadTasks(); // 刷新列表以隐藏管理按钮
+    }
+
+    async function doAdminLogin() {
+        const u = document.getElementById('adminUser').value;
+        const p = document.getElementById('adminPwd').value;
+        const res = await request('/admin/login', 'POST', { username: u, password: p });
+        if(res.success) {
+            adminToken = res.token;
+            localStorage.setItem('adminToken', adminToken);
+            document.getElementById('adminLoginModal').style.display = 'none';
+            document.getElementById('adminPanel').style.display = 'block';
+            loadSettings();
+            loadTasks(); // 刷新列表以显示管理按钮
+        } else alert(res.msg);
+    }
+
+    async function loadSettings() {
+        const res = await request('/settings');
+        if(res.success && res.data) {
+            document.getElementById('cookieInput').value = res.data.cookie || '';
+            document.getElementById('setEnableCronFeature').checked = !!res.data.enableCronFeature;
+            
+            catSettings = res.data; // 缓存所有数据
+            document.getElementById('catTvName').value = res.data.catTvName || '未设置';
+            document.getElementById('catMovieName').value = res.data.catMovieName || '未设置';
+            document.getElementById('catVarietyName').value = res.data.catVarietyName || '未设置';
+            document.getElementById('catAnimeName').value = res.data.catAnimeName || '未设置';
+            document.getElementById('catOtherName').value = res.data.catOtherName || '未设置';
+
+            document.getElementById('setAdminUser').value = res.data.adminUser || 'admin';
+            document.getElementById('setAdminPass').value = res.data.adminPass || 'admin';
+            document.getElementById('olUrl').value = res.data.olUrl || '';
+            document.getElementById('olToken').value = res.data.olToken || '';
+            document.getElementById('olMountPrefix').value = res.data.olMountPrefix || '';
+        }
+    }
+
+    async function saveSettings() {
+        const cookie = document.getElementById('cookieInput').value;
+        const adminUser = document.getElementById('setAdminUser').value;
+        const adminPass = document.getElementById('setAdminPass').value;
+        const enableCronFeature = document.getElementById('setEnableCronFeature').checked;
+        
+        const olUrl = document.getElementById('olUrl').value;
+        const olToken = document.getElementById('olToken').value;
+        const olMountPrefix = document.getElementById('olMountPrefix').value;
+        
+        // 构造分类配置
+        const cats = {
+            catTvCid: catSettings.catTvCid, catTvName: catSettings.catTvName,
+            catMovieCid: catSettings.catMovieCid, catMovieName: catSettings.catMovieName,
+            catVarietyCid: catSettings.catVarietyCid, catVarietyName: catSettings.catVarietyName,
+            catAnimeCid: catSettings.catAnimeCid, catAnimeName: catSettings.catAnimeName,
+            catOtherCid: catSettings.catOtherCid, catOtherName: catSettings.catOtherName,
+        };
+
+        const res = await request('/settings', 'POST', { cookie, cats, adminUser, adminPass, olUrl, olToken, olMountPrefix, enableCronFeature });
+        if(res.success) {
+            alert("设置已保存");
+            loadPublicSettings(); // 立即刷新UI状态
+        } else alert(res.msg);
+    }
+
+    // --- Cron 工具 ---
+    function toggleCronInput() {
+        const enabled = document.getElementById('enableCron').checked;
+        document.getElementById('cronInputBox').style.display = enabled ? 'block' : 'none';
+    }
+
+    function updateCronPreview(mode) {
+        const inputId = mode === 'edit' ? 'edit_cron_hours' : 'cron_hours';
+        const resultId = mode === 'edit' ? 'editCronResult' : 'cronResult';
+        
+        const val = document.getElementById(inputId).value.trim();
+        
+        if (!val) {
+            document.getElementById(resultId).innerText = "执行策略: " + (mode === 'edit' ? "无 (停止定时)" : "仅一次 (立即执行)");
+            document.getElementById(resultId).style.color = "#6b7280";
+            return "";
+        }
+        
+        // 构造 Cron: 0 {hours} * * *
+        const cronStr = `0 ${val} * * *`;
+        let desc = `Cron: ${cronStr} (每天 ${val} 点)`;
+        
+        document.getElementById(resultId).innerText = desc;
+        document.getElementById(resultId).style.color = "#10b981";
+        return cronStr;
+    }
+
+    function clearCron(mode) {
+        const inputId = mode === 'edit' ? 'edit_cron_hours' : 'cron_hours';
+        document.getElementById(inputId).value = '';
+        updateCronPreview(mode);
+    }
+
+    // --- 任务操作 ---
+
+    async function createTask() {
+        // 只有当区域可见时，才读取勾选状态
+        const isCronVisible = document.getElementById('createTaskCronSection').style.display !== 'none';
+        const enableCron = isCronVisible && document.getElementById('enableCron').checked;
+        const cronExpression = enableCron ? updateCronPreview('create') : '';
+        const categoryInput = document.querySelector('input[name="category"]:checked');
+        if(!categoryInput) return alert("请选择保存分类");
+        
+        const payload = {
+            taskName: document.getElementById('taskName').value,
+            shareUrl: document.getElementById('shareUrl').value,
+            password: document.getElementById('accessCode').value,
+            category: categoryInput.value,
+            cronExpression: cronExpression
+        };
+        if(!payload.taskName) return alert("任务名称不能为空");
+        if(!payload.shareUrl) return alert("分享链接不能为空");
+        const res = await request('/task', 'POST', payload);
+        if(res.success) {
+            document.getElementById('taskName').value = '';
+            document.getElementById('shareUrl').value = '';
+            alert('✅ 任务创建成功，已开始首次执行'); loadTasks();
+        } else alert("❌ 失败: " + res.msg);
+    }
+    
+    // 【新增】手动执行任务函数
+    async function runTaskNow(id) {
+        const task = allTasks.find(t => t.id === id);
+        if(!task) return alert('任务不存在');
+        if(task.status === 'running') return alert('任务正在运行中，请稍候');
+        
+        if(confirm(`确定立即执行任务: ${task.taskName}?`)) {
+            // 新增一个 PUT 接口来触发 processTask
+            const res = await request(`/task/${id}/run`, 'PUT');
+            if(res.success) {
+                alert('✅ 任务已启动，请等待状态刷新');
+                loadTasks();
+            } else {
+                alert("❌ 启动失败: " + res.msg);
+            }
+        }
+    }
+
+    // 【新增】扫描百度网盘
+    async function scanBaidu() {
+        if(!confirm('确定要扫描 OpenList 的 /百度网盘 路径吗？')) return;
+        const res = await request('/scan/path', 'POST', { path: '/百度网盘' });
+        if(res.success) {
+            alert('✅ 扫描请求已发送');
+        } else {
+            alert("❌ 失败: " + res.msg);
+        }
+    }
+
+    // 【恢复】手动触发扫描 (调用后端)
+    async function refreshIndex(id) {
+        // 移除确认弹窗，直接执行
+        const res = await request(`/task/${id}/refresh-index`, 'POST');
+        
+        if(res.success) {
+            loadTasks(); // 刷新列表，结果会显示在任务日志中
+        } else {
+            alert("❌ 失败: " + res.msg);
+        }
+    }
+
+    async function loadTasks() {
+        const tasks = await request('/tasks');
+        allTasks = tasks; // 缓存
+        const isAdmin = !!localStorage.getItem('adminToken');
+        
+        // 控制清空按钮显示
+        const btnClear = document.getElementById('btnClearAll');
+        if(btnClear) btnClear.style.display = isAdmin ? 'block' : 'none';
+
+        const html = tasks.map(t => `
+            <div class="task-item ${t.status}">
+                <div class="task-header">
+                    <div>
+                        <a href="${t.shareUrl || '#'}" target="_blank" class="task-link" title="上次成功: ${t.lastSuccessDate || '无'}">
+                            ${t.status === 'scheduled' ? '⏳' : (t.status==='success'?'✅':'▶️')} ${t.taskName || '未命名'} 🔗
+                        </a>
+                        <div class="task-meta">
+                            <span>⏱️ ${t.cronExpression ? t.cronExpression : '手动'}</span>
+                            <span style="margin-left:10px; color:#9ca3af;" title="创建人IP">👤 ${t.creatorIp || '未知IP'}</span>
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:5px;">
+                        ${isAdmin ? `
+                            ${t.status !== 'running' ? `<button onclick="runTaskNow(${t.id})" class="btn-run" style="width:auto; padding:4px 10px; font-size:0.8rem;">执行</button>` : ''}
+                            <button onclick="refreshIndex(${t.id})" class="btn-refresh" style="width:auto; padding:4px 10px; font-size:0.8rem;" title="通知OpenList扫描">扫描</button>
+                            <button onclick="openEditModal(${t.id})" class="btn-edit" style="width:auto; padding:4px 10px; font-size:0.8rem;">编辑</button>
+                            <button onclick="deleteTask(${t.id})" class="btn-danger" style="width:auto; padding:4px 10px; font-size:0.8rem;">删除</button>
+                        ` : ''}
+                    </div>
+                </div>
+                <div class="task-log">${t.log || '等待中...'}</div>
+            </div>
+        `).join('');
+        document.getElementById('taskList').innerHTML = html || '<div style="text-align:center; color:#999;">暂无任务</div>';
+    }
+
+    async function deleteTask(id) {
+        if(confirm('确定删除?')) { await request(`/task/${id}`, 'DELETE'); loadTasks(); }
+    }
+
+    async function clearAllTasks() {
+        if(!confirm('⚠️ 警告：确定要清空所有任务吗？\n此操作将删除所有任务记录并停止相关定时器，且不可恢复！')) return;
+        const res = await request('/tasks', 'DELETE');
+        if(res.success) {
+            alert('✅ 已清空所有任务');
+            loadTasks();
+        } else {
+            alert("❌ 操作失败: " + res.msg);
+        }
+    }
+
+    // --- 编辑功能 ---
+
+    function openEditModal(id) {
+        const task = allTasks.find(t => t.id === id);
+        if(!task) return;
+
+        document.getElementById('editTaskId').value = id;
+        document.getElementById('editTaskName').value = task.taskName || '';
+        document.getElementById('editShareUrl').value = task.shareUrl || '';
+        document.getElementById('editAccessCode').value = task.receiveCode || '';
+
+        // 还原 Cron
+        if (task.cronExpression) {
+            const parts = task.cronExpression.split(' ');
+            if (parts.length >= 2) {
+                document.getElementById('edit_cron_hours').value = parts[1];
+            }
+        } else {
+            clearCron('edit');
+        }
+        updateCronPreview('edit');
+        
+        document.getElementById('editModal').style.display = 'flex';
+    }
+
+    async function updateTask() {
+        const id = document.getElementById('editTaskId').value;
+        const cronExp = updateCronPreview('edit');
+        
+        const payload = {
+            taskName: document.getElementById('editTaskName').value,
+            shareUrl: document.getElementById('editShareUrl').value,
+            password: document.getElementById('editAccessCode').value,
+            cronExpression: cronExp
+        };
+
+        const res = await request(`/task/${id}`, 'PUT', payload);
+        if(res.success) {
+            document.getElementById('editModal').style.display = 'none';
+            alert('✅ 任务更新成功');
+            loadTasks();
+        } else {
+            alert("更新失败: " + res.msg);
+        }
+    }
+
+    // --- 目录选择 ---
+
+    async function openFolderPicker(catKey) {
+        settingCatKey = catKey;
+        document.getElementById('folderModal').style.display = 'flex';
+        // 不传参数，让后端使用默认配置的根目录
+        loadFolders(); 
+    }
+
+    async function loadFolders(cid) {
+        const listDiv = document.getElementById('folderList');
+        listDiv.innerHTML = '<div style="padding:10px;">加载中...</div>';
+        selectedFiles.clear(); updateSelectionUI();
+        
+        const url = cid ? `/folders?cid=${cid}` : '/folders';
+        const res = await request(url);
+        
+        if(res.success) {
+            systemRootCid = res.rootCid || "0"; // 更新系统根目录CID
+            const paths = res.data.path || [];
+            
+            // 如果是初始加载(无cid)，则从返回的 path 中获取当前 cid (即后台设置的根目录)
+            if (paths.length > 0) {
+                curCid = paths[paths.length - 1].cid;
+            } else {
+                curCid = cid || "0";
+            }
+
+            curPathName = paths.length ? paths.map(p=>p.name).join(' > ') : '根目录';
+            document.getElementById('folderBreadcrumb').innerText = curPathName;
+            
+            // 计算上一级目录
+            let parentCid = (paths.length > 1) ? paths[paths.length-2].cid : '0';
+            // 【修改】只有当当前目录不是系统根目录时，才显示返回上一级
+            let html = (curCid !== '0' && curCid !== systemRootCid) ? `<div style="padding:10px; cursor:pointer; background:#f9fafb;" onclick="loadFolders('${parentCid}')">⬅️ 返回上一级</div>` : '';
+            
+            res.data.list.forEach(f => {
+                const isFolder = f.type === 'folder';
+                const icon = isFolder ? '📁' : '📄';
+                // 文件夹点击名字进入，文件点击无动作(或预览)
+                // Checkbox 用于选择
+                html += `
+                    <div class="file-item" style="padding:8px 10px; border-bottom:1px solid #eee; display:flex; align-items:center; gap:8px; cursor:default;">
+                        <input type="checkbox" value="${f.id}" onchange="toggleSelection('${f.id}')" style="width:auto; margin:0; cursor:pointer;">
+                        <span style="cursor:${isFolder ? 'pointer' : 'default'}; flex:1; display:flex; align-items:center; gap:5px;" onclick="${isFolder ? `loadFolders('${f.cid}')` : ''}">
+                            <span>${icon}</span>
+                            <span style="${isFolder ? 'font-weight:500; color:#374151;' : 'color:#6b7280;'}">${f.name}</span>
+                        </span>
+                    </div>
+                `;
+            });
+            listDiv.innerHTML = html || '<div style="padding:10px;">空文件夹</div>';
+        } else {
+            listDiv.innerHTML = '<div style="padding:10px; color:red;">加载失败</div>';
+        }
+    }
+
+    function toggleSelection(id) {
+        if(selectedFiles.has(id)) selectedFiles.delete(id);
+        else selectedFiles.add(id);
+        updateSelectionUI();
+    }
+
+    function updateSelectionUI() {
+        const count = selectedFiles.size;
+        document.getElementById('selectionCount').innerText = count > 0 ? `已选 ${count} 项` : '';
+    }
+
+    async function deleteSelected() {
+        if(selectedFiles.size === 0) return alert("请先选择要删除的文件/文件夹");
+        if(!confirm(`确定删除选中的 ${selectedFiles.size} 项吗？(将移入回收站)`)) return;
+        
+        const res = await request('/files/delete', 'POST', { fileIds: Array.from(selectedFiles) });
+        if(res.success) {
+            alert('删除成功');
+            loadFolders(curCid);
+        } else {
+            alert("删除失败: " + res.msg);
+        }
+    }
+
+    async function createNewFolder() {
+        const name = document.getElementById('newFolderName').value;
+        if(!name) return alert("请输入文件夹名称");
+        
+        const res = await request('/folder', 'POST', { parentCid: curCid, folderName: name });
+        if(res.success) {
+            alert('创建成功');
+            document.getElementById('newFolderName').value = '';
+            loadFolders(res.cid); // 自动进入新创建的文件夹
+        } else {
+            alert("创建失败: " + res.msg);
+        }
+    }
+
+    function confirmFolder() {
+        if (settingCatKey) {
+            // 更新缓存对象
+            catSettings[`cat${capitalize(settingCatKey)}Cid`] = curCid;
+            catSettings[`cat${capitalize(settingCatKey)}Name`] = curPathName;
+            // 更新UI
+            document.getElementById(`cat${capitalize(settingCatKey)}Name`).value = curPathName;
+        }
+        document.getElementById('folderModal').style.display = 'none';
+    }
+
+    function capitalize(s) {
+        return s.charAt(0).toUpperCase() + s.slice(1);
+    }
+</script>
+</body>
+</html>
