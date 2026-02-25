@@ -1,11 +1,33 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Settings, LogOut, Cloud, ArrowLeft } from 'lucide-react';
+import { Settings, LogOut, Cloud, ArrowLeft, RefreshCw } from 'lucide-react';
 
 export default function AdminLayout() {
   const { logout } = useAuth();
   const location = useLocation();
+  const [isScanning, setIsScanning] = useState(false);
+
+  const handleScanBaidu = async () => {
+    if (!confirm('确定要扫描 OpenList 的 /百度网盘 路径吗？')) return;
+    setIsScanning(true);
+    try {
+      const res = await fetch('/api/scan/path', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: '/百度网盘' })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('✅ 扫描请求已发送');
+      } else {
+        alert('❌ ' + (data.msg || data.error || '扫描失败'));
+      }
+    } catch (e: any) {
+      alert('❌ 网络错误');
+    }
+    setIsScanning(false);
+  };
 
   return (
     <div className="flex h-screen bg-zinc-950 text-zinc-50">
@@ -59,6 +81,18 @@ export default function AdminLayout() {
             <Settings className="w-5 h-5" />
             <span className="font-medium">OpenList配置</span>
           </Link>
+          
+          <div className="pt-4 pb-2 px-4">
+             <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">操作</p>
+          </div>
+          <button
+            onClick={handleScanBaidu}
+            disabled={isScanning}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 disabled:opacity-50 text-left"
+          >
+            <RefreshCw className={`w-5 h-5 ${isScanning ? 'animate-spin' : ''}`} />
+            <span className="font-medium">扫描百度网盘</span>
+          </button>
         </nav>
 
         <div className="p-4 border-t border-zinc-800">

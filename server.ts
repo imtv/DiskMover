@@ -306,6 +306,7 @@ async function executeTask(taskId: number, isCron = false) {
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       try {
+          log(`开始扫描 OpenList...`);
           const olRes = await refreshOpenList(targetCid);
           if (olRes.success) {
             log(`成功扫描 OpenList 生成 STRM`);
@@ -317,6 +318,7 @@ async function executeTask(taskId: number, isCron = false) {
       }
       
       updateStatus(isCron ? 'pending' : 'completed');
+      log(`任务执行完成`);
 
     } else if (saveResult.status === 'exists') {
       log(`文件已存在(115自动去重)`);
@@ -345,11 +347,23 @@ async function startServer() {
   // Auth
   app.post('/api/auth/login', (req, res) => {
     const { username, password } = req.body;
-    const user = db.prepare('SELECT * FROM users WHERE username = ? AND password = ?').get(username, password);
-    if (user) {
-      res.json({ success: true, user: { id: (user as any).id, username: (user as any).username } });
+    
+    // First check if there are any settings overrides
+    const settings = getSettings();
+    const adminUser = settings.admin_username || 'admin';
+    const adminPass = settings.admin_password || 'admin123';
+
+    if (username === adminUser && password === adminPass) {
+       // We don't really use the users table for single admin anymore, but let's keep it consistent
+       res.json({ success: true, user: { username: adminUser } });
     } else {
-      res.status(401).json({ error: 'Invalid credentials' });
+       // Fallback to DB users table if settings match fails (legacy support)
+       const user = db.prepare('SELECT * FROM users WHERE username = ? AND password = ?').get(username, password);
+       if (user) {
+         res.json({ success: true, user: { id: (user as any).id, username: (user as any).username } });
+       } else {
+         res.status(401).json({ error: 'Invalid credentials' });
+       }
     }
   });
 
