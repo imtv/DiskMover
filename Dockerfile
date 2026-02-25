@@ -26,15 +26,12 @@ COPY --from=builder /app/server.ts ./
 COPY --from=builder /app/src ./src
 
 # Create data directory for SQLite database
-RUN mkdir -p /app/data && chown node:node /app/data
+RUN mkdir -p /app/data
 
 # Set environment variables
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV DB_PATH=/app/data/app.db
-
-# Switch to non-root user
-USER node
 
 EXPOSE 3000
 
