@@ -357,90 +357,47 @@ async function refreshOpenListPath(path: string) {
     // Remove double slashes
     path = path.replace(/\/\//g, '/');
 
-    // OpenList caches directory listings. If we just added a folder "B" to "A",
-    // scanning "A/B" might work for B's content, but "A" itself might still show cached results without "B".
-    // So we should also scan the parent directory "A" to update its file list.
-    // However, the user specifically mentioned:
-    // "如果扫描了/115网盘/影集，就会让openlist产生缓存，在30分钟内，加了新任务就没法搜到其他新的了"
-    // This implies OpenList has a cooldown or caching mechanism where scanning a parent prevents re-scanning it soon?
-    // Or maybe scanning the parent is exactly what IS needed to show the new child?
-    
-    // Actually, if OpenList has a cache, scanning the PARENT is usually required to make the new child appear in the parent's listing.
-    // But if scanning the parent triggers a 30-minute cache lock on the parent, then subsequent additions to the same parent won't show up.
-    // That seems to be the user's concern.
-    
-    // User said: "扫描的路径是视频名字那个位置的/115网盘/影集/除恶"
-    // This means we are scanning the LEAF folder (the new one we just created).
-    // This is correct for indexing the CONTENTS of that new folder.
-    
-    // But does OpenList automatically know that "除恶" was added to "/115网盘/影集"?
-    // If we don't scan "/115网盘/影集", OpenList might not know "除恶" exists there until the parent is scanned.
-    
-    // The user's complaint: "如果扫描了/115网盘/影集，就会让openlist产生缓存... 加了新任务就没法搜到其他新的了"
-    // This suggests we should NOT scan the parent directory if possible, OR we should be careful.
-    // But we are currently scanning `scanPath` which IS the full path including the new folder name.
-    // e.g. /115网盘/影集/除恶
-    
-    // Wait, the user said: "日志说要扫描 /115网盘/影集/除恶，结果扫描的是/115网盘/Videos-115/影集"
-    // This looks like the mapping logic was stripping the last part or mapping incorrectly?
-    // Ah, in the previous turn we fixed the mapping logic.
-    
-    // Let's look at the mapping logic again.
-    // fullPath115 = /115网盘/影集/除恶
-    // root = /115网盘
-    // mount = /Videos-115
-    // mapped = /Videos-115/影集/除恶
-    
-    // If the log showed "/115网盘/Videos-115/影集", that was definitely wrong.
-    // But now we use `applyPathMapping`.
-    
-    // Regarding the cache issue:
-    // If we scan `/Videos-115/影集/除恶`, we are scanning the specific series folder.
-    // This updates the index for that series.
-    // It does NOT necessarily update the index for `/Videos-115/影集` to show the new folder.
-    // BUT, if we scan `/Videos-115/影集`, it updates the list of series.
-    // The user says scanning `/Videos-115/影集` causes a cache lock.
-    // So we should probably ONLY scan the specific folder `/Videos-115/影集/除恶`.
-    
-    // However, OpenList might support a "refresh" parameter to bypass cache?
-    // Looking at the API call: `path: scanPath, limit: 0`.
-    // There is no force refresh flag visible here.
-    
-    // If the user wants to avoid scanning the parent, we must ensure `scanPath` is the deep path.
-    // Our current logic does exactly that: `targetPath + '/' + task.name`.
-    
-    // So if the code is correct, we are scanning the deep path.
-    // The user's previous log showed: `[OpenList] 准备扫描路径: /115网盘/Videos-115/影集`
-    // This means `task.name` was missing or stripped?
-    // Or `targetPath` was `/115网盘/Videos-115/影集` and `task.name` was empty?
-    // No, `task.name` is required.
-    
-    // Wait, if `targetPath` was configured as `/115网盘/Videos-115/影集` in the settings...
-    // And `task.name` is `除恶`.
-    // Then fullPath is `/115网盘/Videos-115/影集/除恶`.
-    
-    // Let's just ensure we are sending the exact path we logged.
-    
+    const baseUrl = settings.ol_url.replace(/\/$/, "");
+    const headers = {
+        'Authorization': settings.ol_token,
+        'Content-Type': 'application/json'
+    };
+
     try {
-        const baseUrl = settings.ol_url.replace(/\/$/, "");
-        // Use 'refresh' endpoint if available? Or just 'scan'?
-        // The user mentioned "对openlist的操作，只有扫描吧，没有删除，查看这种操作吧".
-        // We are using `/api/admin/scan/start`.
-        
+        // 1. Force Refresh (to clear cache and detect new files)
+        // API: /api/fs/list
+        // Body: { path: "/path/to/dir", password: "", page: 1, per_page: 0, refresh: true }
+        console.log(`[OpenList] 正在强制刷新路径: ${path}`);
+        try {
+            await axios.post(`${baseUrl}/api/fs/list`, {
+                path: path,
+                password: "",
+                page: 1,
+                per_page: 0,
+                refresh: true
+            }, { headers, timeout: 10000 });
+            console.log(`[OpenList] 强制刷新请求成功`);
+        } catch (e: any) {
+            console.log(`[OpenList] 强制刷新失败 (可能不影响后续扫描): ${e.message}`);
+            // Don't return error here, continue to scan
+        }
+
+        // Delay to allow refresh to propagate
+        await new Promise(resolve => setTimeout(resolve, 3000));
+
+        // 2. Scan Index
+        console.log(`[OpenList] 开始扫描路径: ${path}`);
         const res = await axios.post(`${baseUrl}/api/admin/scan/start`, {
             path: path,
             limit: 0
-        }, {
-            headers: {
-                'Authorization': settings.ol_token,
-                'Content-Type': 'application/json'
-            },
-            timeout: 10000
-        });
+        }, { headers, timeout: 10000 });
 
         if (res.data.code === 200) {
             return { success: true, msg: "扫描请求已发送" };
         } else {
+            if (res.data.code === 404 && res.data.message && res.data.message.includes("search not available")) {
+                return { success: false, msg: "OpenList未开启索引功能，请去后台开启！" };
+            }
             return { success: false, msg: `API错误: ${res.data.message} (Code: ${res.data.code})` };
         }
     } catch (e: any) {
@@ -663,32 +620,12 @@ async function startServer() {
         lastBaiduScanTime = now;
     }
 
-    const settings = getSettings();
-    if (!settings.ol_url || !settings.ol_token) {
-        return res.status(400).json({ success: false, msg: "OpenList 未配置" });
-    }
-
     try {
-        const baseUrl = settings.ol_url.replace(/\/$/, "");
-        const result = await axios.post(`${baseUrl}/api/admin/scan/start`, {
-            path: scanPath,
-            limit: 0
-        }, {
-            headers: {
-                'Authorization': settings.ol_token,
-                'Content-Type': 'application/json'
-            },
-            timeout: 10000
-        });
-
-        if (result.data.code === 200) {
-            res.json({ success: true, msg: "扫描请求已发送" });
+        const result = await refreshOpenListPath(scanPath);
+        if (result.success) {
+            res.json({ success: true, msg: result.msg });
         } else {
-            if (result.data.code === 404 && result.data.message && result.data.message.includes("search not available")) {
-                res.status(500).json({ success: false, msg: "OpenList未开启索引功能，请去后台开启！" });
-            } else {
-                res.status(500).json({ success: false, msg: `API错误: ${result.data.message} (Code: ${result.data.code})` });
-            }
+            res.status(500).json({ success: false, msg: result.msg });
         }
     } catch (e: any) {
         res.status(500).json({ success: false, msg: e.message });
