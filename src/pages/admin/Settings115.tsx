@@ -186,15 +186,6 @@ export default function Settings115() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-xs text-zinc-500 mb-1">目录CID</label>
-                    <input
-                      type="text"
-                      readOnly
-                      value={settings[`cat_${cat.id}_cid` as keyof typeof settings]}
-                      className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-400 cursor-not-allowed font-mono"
-                    />
-                  </div>
-                  <div>
                     <label className="block text-xs text-zinc-500 mb-1">目录完整路径</label>
                     <input
                       type="text"
@@ -203,6 +194,15 @@ export default function Settings115() {
                       onChange={handleChange}
                       placeholder="/分类/路径"
                       className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-200 font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-zinc-500 mb-1">目录CID</label>
+                    <input
+                      type="text"
+                      readOnly
+                      value={settings[`cat_${cat.id}_cid` as keyof typeof settings]}
+                      className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-400 cursor-not-allowed font-mono"
                     />
                   </div>
                 </div>

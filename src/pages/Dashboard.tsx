@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Trash2, FileText, FolderOpen, CheckCircle2, Clock, XCircle, RefreshCw, Link as LinkIcon, Pin } from 'lucide-react';
+import { Play, Trash2, FileText, FolderOpen, CheckCircle2, Clock, XCircle, RefreshCw, Link as LinkIcon, Pin, ScanText } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuth } from '../context/AuthContext';
 
@@ -327,15 +327,13 @@ export default function Dashboard() {
                     >
                       <Pin className={`w-5 h-5 ${task.is_pinned ? 'fill-current' : ''}`} />
                     </button>
-                    {isAuthenticated && (
-                      <button
-                        onClick={() => handleRefreshIndex(task.id)}
-                        className="p-2 text-zinc-400 hover:text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors"
-                        title="扫描目录"
-                      >
-                        <RefreshCw className="w-5 h-5" />
-                      </button>
-                    )}
+                    <button
+                      onClick={() => handleRefreshIndex(task.id)}
+                      className="p-2 text-zinc-400 hover:text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors"
+                      title="扫描目录"
+                    >
+                      <ScanText className="w-5 h-5" />
+                    </button>
                     {isAuthenticated && (
                       <button
                         onClick={() => handleRunTask(task.id)}
