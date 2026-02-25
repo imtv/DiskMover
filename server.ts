@@ -6,11 +6,19 @@ import { fileURLToPath } from 'url';
 import * as cron from 'node-cron';
 import service115 from './src/services/service115';
 import axios from 'axios';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const db = new Database('app.db');
+const dbPath = process.env.DB_PATH || 'app.db';
+const dbDir = path.dirname(dbPath);
+
+if (dbDir !== '.' && !fs.existsSync(dbDir)) {
+    fs.mkdirSync(dbDir, { recursive: true });
+}
+
+const db = new Database(dbPath);
 
 // Initialize DB
 db.exec(`
