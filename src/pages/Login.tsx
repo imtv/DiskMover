@@ -26,7 +26,7 @@ export default function Login() {
 
       if (data.success) {
         login();
-        navigate('/admin/settings');
+        navigate('/admin');
       } else {
         setError(data.error || 'Authentication failed');
       }

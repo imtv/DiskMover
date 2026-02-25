@@ -101,21 +101,6 @@ export default function Dashboard() {
     fetchTasks();
   };
 
-  const handleScanBaidu = async () => {
-    if (!confirm('确定要扫描 OpenList 的 /百度网盘 路径吗？')) return;
-    const res = await fetch('/api/scan/path', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ path: '/百度网盘' })
-    });
-    const data = await res.json();
-    if (data.success) {
-      alert('✅ 扫描请求已发送');
-    } else {
-      alert('❌ 失败: ' + data.msg);
-    }
-  };
-
   const categoryMap: Record<string, string> = {
     tv: '电视剧',
     movie: '电影',
@@ -222,15 +207,6 @@ export default function Dashboard() {
         <div className="flex justify-between items-center">
           <h2 className="text-xl font-semibold text-white">历史任务</h2>
           <div className="flex items-center gap-3">
-            {isAuthenticated && (
-              <button
-                onClick={handleScanBaidu}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 transition-colors text-sm font-medium"
-              >
-                <RefreshCw className="w-4 h-4" />
-                扫描百度网盘
-              </button>
-            )}
             {isAuthenticated && tasks.length > 0 && (
               <button
                 onClick={handleClearAllTasks}
