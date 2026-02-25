@@ -606,20 +606,40 @@ async function startServer() {
     if (!task) return res.status(404).json({ success: false, msg: "任务不存在" });
 
     const settings = getSettings();
-    let targetCid = '0';
-    if (task.category === 'tv') targetCid = settings.cat_tv_cid;
-    else if (task.category === 'movie') targetCid = settings.cat_movie_cid;
-    else if (task.category === 'variety') targetCid = settings.cat_variety_cid;
-    else if (task.category === 'anime') targetCid = settings.cat_anime_cid;
-    else if (task.category === 'other') targetCid = settings.cat_other_cid;
+    let targetPath = '';
+    if (task.category === 'tv') targetPath = settings.cat_tv_path;
+    else if (task.category === 'movie') targetPath = settings.cat_movie_path;
+    else if (task.category === 'variety') targetPath = settings.cat_variety_path;
+    else if (task.category === 'anime') targetPath = settings.cat_anime_path;
+    else if (task.category === 'other') targetPath = settings.cat_other_path;
+
+    if (!targetPath) {
+         const time = new Date().toISOString();
+         db.prepare('INSERT INTO logs (task_id, message) VALUES (?, ?)').run(taskId, `❌ [${time}] 手动扫描: 失败 (未配置分类路径)`);
+         return res.status(400).json({ success: false, msg: "未配置分类路径" });
+    }
+
+    let fullPath115 = targetPath.endsWith('/') ? targetPath + task.name : targetPath + '/' + task.name;
+    let scanPath = fullPath115;
+
+    // Apply Mapping
+    if (settings.root_115_path && settings.ol_115_mount_point) {
+        const rootPath = settings.root_115_path.replace(/\/$/, '');
+        const mountPoint = settings.ol_115_mount_point.replace(/\/$/, '');
+        
+        if (fullPath115.startsWith(rootPath)) {
+            scanPath = fullPath115.replace(rootPath, mountPoint);
+        }
+    }
 
     try {
-        const result = await refreshOpenList(targetCid);
+        const result = await refreshOpenListPath(scanPath);
         const time = new Date().toISOString();
         if (result.success) {
-            db.prepare('INSERT INTO logs (task_id, message) VALUES (?, ?)').run(taskId, `✅ [${time}] 手动扫描: 成功`);
+            db.prepare('INSERT INTO logs (task_id, message) VALUES (?, ?)').run(taskId, `✅ [${time}] 手动扫描: 请求已发送 (${scanPath})`);
+            db.prepare('UPDATE tasks SET status = ? WHERE id = ?').run('scanned', taskId);
         } else {
-            db.prepare('INSERT INTO logs (task_id, message) VALUES (?, ?)').run(taskId, `❌ [${time}] 手动扫描: 失败`);
+            db.prepare('INSERT INTO logs (task_id, message) VALUES (?, ?)').run(taskId, `❌ [${time}] 手动扫描: 失败 (${result.msg})`);
         }
         res.json(result);
     } catch (e: any) {
