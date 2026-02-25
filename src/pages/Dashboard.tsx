@@ -27,7 +27,7 @@ export default function Dashboard() {
   const [name, setName] = useState('');
   const [shareUrl, setShareUrl] = useState('');
   const [shareCode, setShareCode] = useState('');
-  const [category, setCategory] = useState('other');
+  const [category, setCategory] = useState('');
   const [cronExpr, setCronExpr] = useState('');
 
   useEffect(() => {
@@ -51,6 +51,10 @@ export default function Dashboard() {
 
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!category) {
+      alert('请选择分类');
+      return;
+    }
     setIsSubmitting(true);
     await fetch('/api/tasks', {
       method: 'POST',
@@ -60,6 +64,7 @@ export default function Dashboard() {
     setName('');
     setShareUrl('');
     setShareCode('');
+    setCategory('');
     setCronExpr('');
     setIsSubmitting(false);
     fetchTasks();
@@ -94,6 +99,21 @@ export default function Dashboard() {
   const handleRefreshIndex = async (id: number) => {
     await fetch(`/api/tasks/${id}/refresh-index`, { method: 'POST' });
     fetchTasks();
+  };
+
+  const handleScanBaidu = async () => {
+    if (!confirm('确定要扫描 OpenList 的 /百度网盘 路径吗？')) return;
+    const res = await fetch('/api/scan/path', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: '/百度网盘' })
+    });
+    const data = await res.json();
+    if (data.success) {
+      alert('✅ 扫描请求已发送');
+    } else {
+      alert('❌ 失败: ' + data.msg);
+    }
   };
 
   const categoryMap: Record<string, string> = {
@@ -201,15 +221,26 @@ export default function Dashboard() {
       <div className="space-y-4">
         <div className="flex justify-between items-center">
           <h2 className="text-xl font-semibold text-white">历史任务</h2>
-          {isAuthenticated && tasks.length > 0 && (
-            <button
-              onClick={handleClearAllTasks}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors text-sm font-medium"
-            >
-              <Trash2 className="w-4 h-4" />
-              清空队列
-            </button>
-          )}
+          <div className="flex items-center gap-3">
+            {isAuthenticated && (
+              <button
+                onClick={handleScanBaidu}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 transition-colors text-sm font-medium"
+              >
+                <RefreshCw className="w-4 h-4" />
+                扫描百度网盘
+              </button>
+            )}
+            {isAuthenticated && tasks.length > 0 && (
+              <button
+                onClick={handleClearAllTasks}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors text-sm font-medium"
+              >
+                <Trash2 className="w-4 h-4" />
+                清空队列
+              </button>
+            )}
+          </div>
         </div>
         
         {tasks.length === 0 ? (

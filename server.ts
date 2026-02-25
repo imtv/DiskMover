@@ -4,7 +4,7 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import * as cron from 'node-cron';
-import service115 from './src/services/service115.ts';
+import service115 from './src/services/service115.js';
 import axios from 'axios';
 import fs from 'fs';
 
@@ -142,19 +142,25 @@ async function refreshOpenList(targetCid: string) {
 
       console.log(`[OpenList] 准备扫描路径: ${scanPath}`);
 
-      const res = await axios.post(`${settings.ol_url}/api/fs/scan`, {
-          path: scanPath
+      const baseUrl = settings.ol_url.replace(/\/$/, "");
+      const res = await axios.post(`${baseUrl}/api/admin/scan/start`, {
+          path: scanPath,
+          limit: 0
       }, {
           headers: {
               'Authorization': settings.ol_token,
               'Content-Type': 'application/json'
-          }
+          },
+          timeout: 10000
       });
 
       if (res.data.code === 200) {
           return { success: true, msg: "扫描请求已发送" };
       } else {
-          return { success: false, msg: res.data.message || "扫描请求失败" };
+          if (res.data.code === 404 && res.data.message && res.data.message.includes("search not available")) {
+              return { success: false, msg: "OpenList未开启索引功能，请去后台开启！" };
+          }
+          return { success: false, msg: `API错误: ${res.data.message} (Code: ${res.data.code})` };
       }
   } catch (e: any) {
       return { success: false, msg: "请求 OpenList 异常: " + e.message };
@@ -382,7 +388,7 @@ async function startServer() {
       const result = await service115.getFolderList(cookie, cid, 1000);
       if (result.success) {
         // Filter only folders
-        const folders = result.list.filter((item: any) => item.isFolder).map((item: any) => ({
+        const folders = result.list.filter((item: any) => item.type === 'folder').map((item: any) => ({
           id: item.id,
           name: item.name,
           cid: item.cid
@@ -422,172 +428,6 @@ async function startServer() {
 
     res.json({ success: true, id: taskId });
   });
-
-  // Extract execution logic into a function
-  async function executeTask(taskId: number, isCron = false) {
-    const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId) as any;
-    if (!task) return;
-
-    const settings = getSettings();
-    const cookie = settings.cookie_115;
-
-    const log = (msg: string) => {
-      db.prepare('INSERT INTO logs (task_id, message) VALUES (?, ?)').run(taskId, msg);
-      console.log(`[Task ${taskId}] ${msg}`);
-    };
-
-    const updateStatus = (status: string) => {
-      db.prepare("UPDATE tasks SET status = ? WHERE id = ?").run(status, taskId);
-    };
-
-    if (!cookie) {
-      log(`Cookie配置缺失或失效`);
-      updateStatus(isCron ? 'pending' : 'error');
-      return;
-    }
-
-    const todayStr = new Date().toISOString().split('T')[0];
-
-    if (isCron && task.status === 'pending' && task.last_success_date === todayStr) {
-      log(`今日已成功转存，跳过本次执行`);
-      return; 
-    }
-
-    updateStatus('running');
-    log(`开始执行项目转存: ${task.name || '未命名'}`);
-
-    try {
-      let shareInfo = await service115.getShareInfo(cookie, extractShareCode(task.share_url).code, task.share_code);
-      log(`成功读取分享链接: ${shareInfo.shareTitle}`);
-
-      const fileIds = shareInfo.fileIds;
-
-      if (!fileIds || fileIds.length === 0) {
-        log(`分享链接内无文件`);
-        updateStatus(isCron ? 'pending' : 'error');
-        return; 
-      }
-
-      const currentShareHash = fileIds.join(',');
-
-      if (isCron && task.last_share_hash && task.last_share_hash === currentShareHash) {
-        log(`内容无更新，跳过转存`);
-        updateStatus('pending');
-        return; 
-      }
-
-      db.prepare("UPDATE tasks SET last_share_hash = ? WHERE id = ?").run(currentShareHash, taskId);
-
-      // Clean old versions
-      if (task.last_saved_file_ids) {
-        const oldIds = JSON.parse(task.last_saved_file_ids);
-        if (oldIds.length > 0) {
-          log(`正在清理旧版本文件: ${oldIds.length} 个`);
-          await service115.deleteFiles(cookie, oldIds);
-        }
-      }
-
-      // Determine target CID based on category
-      let targetCid = '0';
-      let targetName = '根目录';
-      if (task.category === 'tv') { targetCid = settings.cat_tv_cid; targetName = settings.cat_tv_name; }
-      else if (task.category === 'movie') { targetCid = settings.cat_movie_cid; targetName = settings.cat_movie_name; }
-      else if (task.category === 'variety') { targetCid = settings.cat_variety_cid; targetName = settings.cat_variety_name; }
-      else if (task.category === 'anime') { targetCid = settings.cat_anime_cid; targetName = settings.cat_anime_name; }
-      else if (task.category === 'other') { targetCid = settings.cat_other_cid; targetName = settings.cat_other_name; }
-
-      let finalTargetCid = targetCid;
-      let createdFolderId = null;
-
-      const isSingleFolder = shareInfo.list.length === 1 && !!shareInfo.list[0].cid;
-
-      if (!isSingleFolder) {
-        const folderName = task.name;
-        log(`检测到散文件，正在创建文件夹: ${folderName}`);
-        const createRes = await service115.addFolder(cookie, targetCid, folderName);
-        if (createRes.success) {
-            finalTargetCid = createRes.cid;
-            createdFolderId = createRes.cid;
-            log(`文件夹就绪 (CID: ${finalTargetCid})`);
-        } else {
-            throw new Error(createRes.msg);
-        }
-      }
-
-      const saveResult = await service115.saveFiles(cookie, finalTargetCid, extractShareCode(task.share_url).code, task.share_code, fileIds);
-
-      if (saveResult.success) {
-        db.prepare("UPDATE tasks SET last_success_date = ? WHERE id = ?").run(todayStr, taskId);
-        log(`成功保存到${targetName}路径`);
-
-        await new Promise(resolve => setTimeout(resolve, 3000));
-
-        let savedIds: string[] = [];
-
-        if (createdFolderId) {
-            savedIds = [createdFolderId];
-        } else {
-            const recent = await service115.getRecentItems(cookie, targetCid, 10);
-            if (recent.success && recent.items.length > 0) {
-                if (saveResult.count === 1 && recent.items[0].isFolder && task.name) {
-                    const item = recent.items[0];
-                    savedIds = [item.id];
-
-                    if (item.name !== task.name) {
-                        try {
-                            const listRes = await service115.getFolderList(cookie, targetCid, 1000);
-                            if (listRes.success && listRes.list) {
-                                const existing = listRes.list.find((f: any) => f.name === task.name);
-                                if (existing) {
-                                    log(`发现同名文件/文件夹 [${existing.name}]，正在删除旧文件...`);
-                                    await service115.deleteFiles(cookie, [existing.id]);
-                                    log(`删除旧同名文件: ${task.name}`);
-                                    await new Promise(resolve => setTimeout(resolve, 2000)); 
-                                }
-                            }
-                        } catch (e) {
-                            console.warn("[Task] 检查同名文件失败:", e);
-                        }
-
-                        await service115.renameFile(cookie, item.id, task.name);
-                        log(`成功修改文件夹名称: ${task.name}`);
-                    }
-                } else {
-                    savedIds = recent.items.slice(0, saveResult.count).map((i: any) => i.id);
-                }
-            }
-        }
-
-        db.prepare("UPDATE tasks SET last_saved_file_ids = ? WHERE id = ?").run(JSON.stringify(savedIds), taskId);
-
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        try {
-            const olRes = await refreshOpenList(targetCid);
-            if (olRes.success) {
-              log(`成功扫描 OpenList 生成 STRM`);
-            } else {
-              log(`OpenList 扫描失败: ${olRes.msg}`);
-            }
-        } catch (e) {
-            log(`OpenList 扫描失败`);
-        }
-        
-        updateStatus(isCron ? 'pending' : 'completed');
-
-      } else if (saveResult.status === 'exists') {
-        log(`文件已存在(115自动去重)`);
-        updateStatus(isCron ? 'pending' : 'completed');
-      } else {
-        log(`转存失败: ${saveResult.msg}`);
-        updateStatus(isCron ? 'pending' : 'error');
-      }
-
-    } catch (e: any) {
-      log(`执行出错: ${e.message}`);
-      updateStatus(isCron ? 'pending' : 'error');
-    }
-  }
 
   app.delete('/api/tasks/:id', (req, res) => {
     const taskId = parseInt(req.params.id);
@@ -660,19 +500,26 @@ async function startServer() {
     }
 
     try {
-        const result = await axios.post(`${settings.ol_url}/api/fs/scan`, {
-            path: scanPath
+        const baseUrl = settings.ol_url.replace(/\/$/, "");
+        const result = await axios.post(`${baseUrl}/api/admin/scan/start`, {
+            path: scanPath,
+            limit: 0
         }, {
             headers: {
                 'Authorization': settings.ol_token,
                 'Content-Type': 'application/json'
-            }
+            },
+            timeout: 10000
         });
 
         if (result.data.code === 200) {
             res.json({ success: true, msg: "扫描请求已发送" });
         } else {
-            res.status(500).json({ success: false, msg: result.data.message || "扫描请求失败" });
+            if (result.data.code === 404 && result.data.message && result.data.message.includes("search not available")) {
+                res.status(500).json({ success: false, msg: "OpenList未开启索引功能，请去后台开启！" });
+            } else {
+                res.status(500).json({ success: false, msg: `API错误: ${result.data.message} (Code: ${result.data.code})` });
+            }
         }
     } catch (e: any) {
         res.status(500).json({ success: false, msg: e.message });

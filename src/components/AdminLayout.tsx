@@ -23,16 +23,41 @@ export default function AdminLayout() {
             <ArrowLeft className="w-5 h-5" />
             <span className="font-medium">返回首页</span>
           </Link>
+          <div className="pt-4 pb-2 px-4">
+            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">设置</p>
+          </div>
           <Link
-            to="/admin/settings"
+            to="/admin/system"
             className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
-              location.pathname.includes('/settings')
+              location.pathname.includes('/system')
                 ? 'bg-indigo-500/10 text-indigo-400' 
                 : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100'
             }`}
           >
             <Settings className="w-5 h-5" />
             <span className="font-medium">系统设置</span>
+          </Link>
+          <Link
+            to="/admin/115"
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
+              location.pathname.includes('/115')
+                ? 'bg-emerald-500/10 text-emerald-400' 
+                : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100'
+            }`}
+          >
+            <Cloud className="w-5 h-5" />
+            <span className="font-medium">115网盘配置</span>
+          </Link>
+          <Link
+            to="/admin/openlist"
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
+              location.pathname.includes('/openlist')
+                ? 'bg-amber-500/10 text-amber-400' 
+                : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100'
+            }`}
+          >
+            <Settings className="w-5 h-5" />
+            <span className="font-medium">OpenList配置</span>
           </Link>
         </nav>
 

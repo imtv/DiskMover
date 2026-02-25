@@ -5,7 +5,9 @@ import PublicLayout from './components/PublicLayout';
 import AdminLayout from './components/AdminLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
-import Settings from './pages/Settings';
+import SystemSettings from './pages/admin/SystemSettings';
+import Settings115 from './pages/admin/Settings115';
+import OpenListSettings from './pages/admin/OpenListSettings';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated } = useAuth();
@@ -34,8 +36,10 @@ export default function App() {
               </ProtectedRoute>
             }
           >
-            <Route index element={<Navigate to="/admin/settings" replace />} />
-            <Route path="settings" element={<Settings />} />
+            <Route index element={<Navigate to="/admin/system" replace />} />
+            <Route path="system" element={<SystemSettings />} />
+            <Route path="115" element={<Settings115 />} />
+            <Route path="openlist" element={<OpenListSettings />} />
           </Route>
         </Routes>
       </Router>
