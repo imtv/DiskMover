@@ -305,6 +305,16 @@ export default function Dashboard() {
                             <CheckCircle2 className="w-3 h-3" />
                             已完成
                           </span>
+                        ) : task.status === 'scanned' ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                            <ScanText className="w-3 h-3" />
+                            已扫描
+                          </span>
+                        ) : task.status === 'link_replaced' ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                            <LinkIcon className="w-3 h-3" />
+                            更换链接已完成
+                          </span>
                         ) : task.status === 'running' ? (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
                             <RefreshCw className="w-3 h-3 animate-spin" />
