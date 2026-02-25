@@ -46,7 +46,8 @@ db.exec(`
     last_saved_file_ids TEXT,
     last_success_date TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    is_pinned INTEGER DEFAULT 0
   );
   CREATE TABLE IF NOT EXISTS logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -55,6 +56,13 @@ db.exec(`
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 `);
+
+// Migration: Add is_pinned column if not exists
+try {
+  db.prepare('ALTER TABLE tasks ADD COLUMN is_pinned INTEGER DEFAULT 0').run();
+} catch (e) {
+  // Column likely already exists
+}
 
 // Insert default admin if no users exist
 const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
@@ -515,8 +523,18 @@ async function startServer() {
 
   // Tasks
   app.get('/api/tasks', (req, res) => {
-    const tasks = db.prepare('SELECT * FROM tasks ORDER BY created_at DESC').all();
+    const tasks = db.prepare('SELECT * FROM tasks ORDER BY is_pinned DESC, created_at DESC').all();
     res.json(tasks);
+  });
+
+  app.post('/api/tasks/:id/pin', (req, res) => {
+    const taskId = parseInt(req.params.id);
+    const task = db.prepare('SELECT is_pinned FROM tasks WHERE id = ?').get(taskId) as any;
+    if (!task) return res.status(404).json({ error: 'Task not found' });
+    
+    const newPinned = task.is_pinned ? 0 : 1;
+    db.prepare('UPDATE tasks SET is_pinned = ? WHERE id = ?').run(newPinned, taskId);
+    res.json({ success: true, is_pinned: newPinned });
   });
 
   app.post('/api/tasks', (req, res) => {

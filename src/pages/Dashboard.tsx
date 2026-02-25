@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Trash2, FileText, FolderOpen, CheckCircle2, Clock, XCircle, RefreshCw, Link as LinkIcon } from 'lucide-react';
+import { Play, Trash2, FileText, FolderOpen, CheckCircle2, Clock, XCircle, RefreshCw, Link as LinkIcon, Pin } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuth } from '../context/AuthContext';
 
@@ -12,6 +12,7 @@ interface Task {
   cron_expr: string;
   status: string;
   created_at: string;
+  is_pinned: number;
 }
 
 export default function Dashboard() {
@@ -140,6 +141,11 @@ export default function Dashboard() {
   const handleClearAllTasks = async () => {
     if (!confirm('⚠️ 警告：确定要清空所有任务吗？\n此操作将删除所有任务记录并停止相关定时器，且不可恢复！')) return;
     await fetch('/api/tasks', { method: 'DELETE' });
+    fetchTasks();
+  };
+
+  const handlePinTask = async (id: number) => {
+    await fetch(`/api/tasks/${id}/pin`, { method: 'POST' });
     fetchTasks();
   };
 
@@ -274,11 +280,11 @@ export default function Dashboard() {
         ) : (
           <div className="grid grid-cols-1 gap-4">
             {tasks.map((task) => (
-              <div key={task.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-xl hover:border-zinc-700 transition-colors group">
+              <div key={task.id} className={`bg-zinc-900 border rounded-2xl p-5 shadow-xl transition-colors group ${task.is_pinned ? 'border-amber-500/30 bg-amber-500/5' : 'border-zinc-800 hover:border-zinc-700'}`}>
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                   <div className="flex items-start gap-4 min-w-0">
-                    <div className="p-3 bg-zinc-800/50 rounded-xl text-indigo-400 shrink-0">
-                      <FileText className="w-6 h-6" />
+                    <div className={`p-3 rounded-xl shrink-0 ${task.is_pinned ? 'bg-amber-500/10 text-amber-400' : 'bg-zinc-800/50 text-indigo-400'}`}>
+                      {task.is_pinned ? <Pin className="w-6 h-6 fill-current" /> : <FileText className="w-6 h-6" />}
                     </div>
                     <div className="min-w-0 space-y-1">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -314,6 +320,13 @@ export default function Dashboard() {
                   </div>
                   
                   <div className="flex items-center sm:justify-end gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-zinc-800/50 mt-2 sm:mt-0">
+                    <button
+                      onClick={() => handlePinTask(task.id)}
+                      className={`p-2 rounded-lg transition-colors ${task.is_pinned ? 'text-amber-400 bg-amber-400/10' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'}`}
+                      title={task.is_pinned ? "取消置顶" : "置顶任务"}
+                    >
+                      <Pin className={`w-5 h-5 ${task.is_pinned ? 'fill-current' : ''}`} />
+                    </button>
                     {isAuthenticated && (
                       <button
                         onClick={() => handleRefreshIndex(task.id)}
