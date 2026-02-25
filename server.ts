@@ -348,10 +348,20 @@ async function executeTask(taskId: number, isCron = false) {
              
              let scanPath = fullPath115;
              if (settings.root_115_path && settings.ol_115_mount_point) {
-                 if (fullPath115.startsWith(settings.root_115_path)) {
-                     scanPath = fullPath115.replace(settings.root_115_path, settings.ol_115_mount_point);
+                 const rootPath = settings.root_115_path.replace(/\/$/, ''); // Remove trailing slash
+                 const mountPoint = settings.ol_115_mount_point.replace(/\/$/, ''); // Remove trailing slash
+                 
+                 log(`OpenList映射配置: root=[${rootPath}], mount=[${mountPoint}]`);
+
+                 if (fullPath115.startsWith(rootPath)) {
+                     // Replace only the first occurrence
+                     scanPath = fullPath115.replace(rootPath, mountPoint);
                      log(`应用路径映射: ${fullPath115} -> ${scanPath}`);
+                 } else {
+                     log(`路径不匹配映射规则，将使用原始路径扫描`);
                  }
+             } else {
+                 log(`未配置路径映射，将使用原始路径扫描`);
              }
 
              log(`开始扫描 OpenList 路径: ${scanPath}`);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Trash2, FileText, FolderOpen, CheckCircle2, Clock, XCircle, RefreshCw } from 'lucide-react';
+import { Play, Trash2, FileText, FolderOpen, CheckCircle2, Clock, XCircle, RefreshCw, Link as LinkIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuth } from '../context/AuthContext';
 
@@ -344,7 +344,7 @@ export default function Dashboard() {
                       className="p-2 text-zinc-400 hover:text-amber-400 hover:bg-amber-400/10 rounded-lg transition-colors"
                       title="更换链接"
                     >
-                      <RefreshCw className="w-5 h-5" />
+                      <LinkIcon className="w-5 h-5" />
                     </button>
                     {isAuthenticated && (
                       <button
@@ -400,7 +400,7 @@ export default function Dashboard() {
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
             <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between shrink-0">
               <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                <RefreshCw className="w-5 h-5 text-amber-400" />
+                <LinkIcon className="w-5 h-5 text-amber-400" />
                 更换分享链接
               </h3>
               <button onClick={() => setIsReplaceModalOpen(false)} className="text-zinc-400 hover:text-white transition-colors">
