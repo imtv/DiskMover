@@ -3,7 +3,8 @@ import { Save, Link as LinkIcon } from 'lucide-react';
 
 export default function OpenListSettings() {
   const [settings, setSettings] = useState({
-    ol_url: '', ol_token: '', ol_mount_prefix: ''
+    ol_url: '', ol_token: '', ol_mount_prefix: '',
+    ol_115_mount_point: '', root_115_path: ''
   });
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -95,6 +96,37 @@ export default function OpenListSettings() {
                 placeholder="例如 /115网盘 (将自动替换根目录路径)"
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
               />
+            </div>
+            
+            <div className="pt-4 border-t border-zinc-800">
+                <h3 className="text-sm font-medium text-white mb-3">115网盘路径映射 (用于精确扫描)</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-xs text-zinc-500 mb-1">115网盘真实根目录 (如 /根目录/Videos-115)</label>
+                        <input
+                            type="text"
+                            name="root_115_path"
+                            value={settings.root_115_path}
+                            onChange={handleChange}
+                            placeholder="/根目录/Videos-115"
+                            className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-200 text-sm"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs text-zinc-500 mb-1">OpenList 挂载点 (如 /115网盘)</label>
+                        <input
+                            type="text"
+                            name="ol_115_mount_point"
+                            value={settings.ol_115_mount_point}
+                            onChange={handleChange}
+                            placeholder="/115网盘"
+                            className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-200 text-sm"
+                        />
+                    </div>
+                </div>
+                <p className="text-xs text-zinc-500 mt-2">
+                    当系统在 115 网盘操作文件时，会将路径中的 <b>115网盘真实根目录</b> 替换为 <b>OpenList 挂载点</b>，然后通知 OpenList 扫描该路径。
+                </p>
             </div>
           </div>
         </div>

@@ -2,6 +2,9 @@ import express from 'express';
 import { createServer as createViteServer } from 'vite';
 import Database from 'better-sqlite3';
 import path from 'path';
+
+process.env.TZ = 'Asia/Shanghai';
+
 import { fileURLToPath } from 'url';
 import * as cron from 'node-cron';
 import service115 from './src/services/service115.js';
@@ -62,12 +65,14 @@ if (userCount.count === 0) {
 // Default settings
 const defaultSettings: Record<string, string> = {
   cookie_115: '',
-  cat_tv_cid: '0', cat_tv_name: '电视剧',
-  cat_movie_cid: '0', cat_movie_name: '电影',
-  cat_variety_cid: '0', cat_variety_name: '综艺',
-  cat_anime_cid: '0', cat_anime_name: '动漫',
-  cat_other_cid: '0', cat_other_name: '其他',
+  cat_tv_cid: '0', cat_tv_name: '电视剧', cat_tv_path: '',
+  cat_movie_cid: '0', cat_movie_name: '电影', cat_movie_path: '',
+  cat_variety_cid: '0', cat_variety_name: '综艺', cat_variety_path: '',
+  cat_anime_cid: '0', cat_anime_name: '动漫', cat_anime_path: '',
+  cat_other_cid: '0', cat_other_name: '其他', cat_other_path: '',
   ol_url: '', ol_token: '', ol_mount_prefix: '',
+  ol_115_mount_point: '', // OpenList's mount point for 115 (e.g. /115Drive)
+  root_115_path: '', // The real 115 root path corresponding to the mount point (e.g. /Root/Videos-115)
   enable_cron: 'false'
 };
 
@@ -211,114 +216,157 @@ async function executeTask(taskId: number, isCron = false) {
       return; 
     }
 
-    const currentShareHash = fileIds.join(',');
-
-    if (isCron && task.last_share_hash && task.last_share_hash === currentShareHash) {
-      log(`内容无更新，跳过转存`);
-      updateStatus('pending');
-      return; 
-    }
-
-    db.prepare("UPDATE tasks SET last_share_hash = ? WHERE id = ?").run(currentShareHash, taskId);
-
-    // Clean old versions
-    if (task.last_saved_file_ids) {
-      const oldIds = JSON.parse(task.last_saved_file_ids);
-      if (oldIds.length > 0) {
-        log(`正在清理旧版本文件: ${oldIds.length} 个`);
-        await service115.deleteFiles(cookie, oldIds);
-      }
-    }
-
-    // Determine target CID based on category
+    // Determine target CID and Path based on category
     let targetCid = '0';
     let targetName = '根目录';
-    if (task.category === 'tv') { targetCid = settings.cat_tv_cid; targetName = settings.cat_tv_name; }
-    else if (task.category === 'movie') { targetCid = settings.cat_movie_cid; targetName = settings.cat_movie_name; }
-    else if (task.category === 'variety') { targetCid = settings.cat_variety_cid; targetName = settings.cat_variety_name; }
-    else if (task.category === 'anime') { targetCid = settings.cat_anime_cid; targetName = settings.cat_anime_name; }
-    else if (task.category === 'other') { targetCid = settings.cat_other_cid; targetName = settings.cat_other_name; }
+    let targetPath = '';
+    
+    if (task.category === 'tv') { 
+        targetCid = settings.cat_tv_cid; 
+        targetName = settings.cat_tv_name; 
+        targetPath = settings.cat_tv_path;
+    }
+    else if (task.category === 'movie') { 
+        targetCid = settings.cat_movie_cid; 
+        targetName = settings.cat_movie_name; 
+        targetPath = settings.cat_movie_path;
+    }
+    else if (task.category === 'variety') { 
+        targetCid = settings.cat_variety_cid; 
+        targetName = settings.cat_variety_name; 
+        targetPath = settings.cat_variety_path;
+    }
+    else if (task.category === 'anime') { 
+        targetCid = settings.cat_anime_cid; 
+        targetName = settings.cat_anime_name; 
+        targetPath = settings.cat_anime_path;
+    }
+    else if (task.category === 'other') { 
+        targetCid = settings.cat_other_cid; 
+        targetName = settings.cat_other_name; 
+        targetPath = settings.cat_other_path;
+    }
+
+    // Step 1: Check if folder exists and delete it
+    log(`检查目标路径下是否存在同名文件夹: ${task.name}`);
+    try {
+        const listRes = await service115.getFolderList(cookie, targetCid, 1000);
+        if (listRes.success && listRes.list) {
+            const existing = listRes.list.find((f: any) => f.name === task.name);
+            if (existing) {
+                log(`发现已存在同名文件夹/文件 [${existing.name}] (CID/FID: ${existing.id})，正在删除...`);
+                const delRes = await service115.deleteFiles(cookie, [existing.id]);
+                if (delRes.success) {
+                    log(`删除成功`);
+                    await new Promise(resolve => setTimeout(resolve, 2000)); // Wait for deletion to propagate
+                } else {
+                    log(`删除失败: ${delRes.msg}`);
+                    throw new Error(`无法删除已存在的同名文件夹: ${delRes.msg}`);
+                }
+            } else {
+                log(`未发现同名文件夹，继续执行`);
+            }
+        }
+    } catch (e: any) {
+        log(`检查同名文件夹失败: ${e.message}`);
+        // Continue anyway? Or stop? Let's continue but warn.
+    }
+
+    // Step 2: Save files
+    log(`开始转存文件...`);
+    
+    // Logic: 
+    // If share has 1 folder -> Save it directly to targetCid. Then rename it to task.name.
+    // If share has multiple files/folders -> Create folder task.name in targetCid. Save files into that new folder.
 
     let finalTargetCid = targetCid;
     let createdFolderId = null;
+    let isMultiFile = shareInfo.list.length > 1 || (shareInfo.list.length === 1 && shareInfo.list[0].fid); // Multiple items OR single file (not folder)
 
-    const isSingleFolder = shareInfo.list.length === 1 && !!shareInfo.list[0].cid;
-
-    if (!isSingleFolder) {
-      const folderName = task.name;
-      log(`检测到散文件，正在创建文件夹: ${folderName}`);
-      const createRes = await service115.addFolder(cookie, targetCid, folderName);
-      if (createRes.success) {
-          finalTargetCid = createRes.cid;
-          createdFolderId = createRes.cid;
-          log(`文件夹就绪 (CID: ${finalTargetCid})`);
-      } else {
-          throw new Error(createRes.msg);
-      }
+    if (isMultiFile) {
+        log(`资源为零散文件或多个文件，创建文件夹: ${task.name}`);
+        const createRes = await service115.addFolder(cookie, targetCid, task.name);
+        if (createRes.success) {
+            finalTargetCid = createRes.cid;
+            createdFolderId = createRes.cid;
+            log(`文件夹创建成功 (CID: ${finalTargetCid})`);
+        } else {
+            throw new Error(`创建文件夹失败: ${createRes.msg}`);
+        }
     }
 
     const saveResult = await service115.saveFiles(cookie, finalTargetCid, extractShareCode(task.share_url).code, task.share_code, fileIds);
 
     if (saveResult.success) {
-      db.prepare("UPDATE tasks SET last_success_date = ? WHERE id = ?").run(todayStr, taskId);
-      log(`成功保存到${targetName}路径`);
+        db.prepare("UPDATE tasks SET last_success_date = ? WHERE id = ?").run(todayStr, taskId);
+        log(`成功保存文件`);
 
-      await new Promise(resolve => setTimeout(resolve, 3000));
+        await new Promise(resolve => setTimeout(resolve, 3000));
 
-      let savedIds: string[] = [];
+        // Step 3: Rename if needed (Only if we saved a single folder directly to targetCid)
+        if (!isMultiFile) {
+            // We saved a single folder. We need to find it and rename it to task.name
+            // Since we deleted the old one, the new one should be the one we just saved.
+            // But 115 saveFiles doesn't return the new CID. We have to find it.
+            // It should be the most recent folder in targetCid.
+            
+            const recent = await service115.getRecentItems(cookie, targetCid, 20);
+            if (recent.success && recent.items.length > 0) {
+                // Find the folder that matches the share content name (roughly) or just take the newest one?
+                // The share info has the name.
+                const sharedItemName = shareInfo.list[0].n;
+                const savedItem = recent.items.find((i: any) => i.name === sharedItemName);
+                
+                if (savedItem) {
+                    if (savedItem.name !== task.name) {
+                        log(`正在重命名: ${savedItem.name} -> ${task.name}`);
+                        const renameRes = await service115.renameFile(cookie, savedItem.id, task.name);
+                        if (renameRes.success) {
+                            log(`重命名成功`);
+                        } else {
+                            log(`重命名失败: ${renameRes.msg}`);
+                        }
+                    }
+                } else {
+                    log(`警告: 未能在目标目录找到刚转存的文件夹 [${sharedItemName}]，可能需要手动重命名`);
+                }
+            }
+        }
 
-      if (createdFolderId) {
-          savedIds = [createdFolderId];
-      } else {
-          const recent = await service115.getRecentItems(cookie, targetCid, 10);
-          if (recent.success && recent.items.length > 0) {
-              if (saveResult.count === 1 && recent.items[0].isFolder && task.name) {
-                  const item = recent.items[0];
-                  savedIds = [item.id];
+        // Step 4: OpenList Scan
+        // Construct the full path to scan
+        // Path = CategoryPath + "/" + TaskName
+        // If CategoryPath is empty, we can't scan efficiently.
+        
+        if (targetPath) {
+             let fullPath115 = targetPath.endsWith('/') ? targetPath + task.name : targetPath + '/' + task.name;
+             
+             // Apply Mapping
+             // settings.root_115_path (e.g. /Root/Videos-115) -> settings.ol_115_mount_point (e.g. /115Drive)
+             
+             let scanPath = fullPath115;
+             if (settings.root_115_path && settings.ol_115_mount_point) {
+                 if (fullPath115.startsWith(settings.root_115_path)) {
+                     scanPath = fullPath115.replace(settings.root_115_path, settings.ol_115_mount_point);
+                     log(`应用路径映射: ${fullPath115} -> ${scanPath}`);
+                 }
+             }
 
-                  if (item.name !== task.name) {
-                      try {
-                          const listRes = await service115.getFolderList(cookie, targetCid, 1000);
-                          if (listRes.success && listRes.list) {
-                              const existing = listRes.list.find((f: any) => f.name === task.name);
-                              if (existing) {
-                                  log(`发现同名文件/文件夹 [${existing.name}]，正在删除旧文件...`);
-                                  await service115.deleteFiles(cookie, [existing.id]);
-                                  log(`删除旧同名文件: ${task.name}`);
-                                  await new Promise(resolve => setTimeout(resolve, 2000)); 
-                              }
-                          }
-                      } catch (e) {
-                          console.warn("[Task] 检查同名文件失败:", e);
-                      }
-
-                      await service115.renameFile(cookie, item.id, task.name);
-                      log(`成功修改文件夹名称: ${task.name}`);
-                  }
-              } else {
-                  savedIds = recent.items.slice(0, saveResult.count).map((i: any) => i.id);
-              }
-          }
-      }
-
-      db.prepare("UPDATE tasks SET last_saved_file_ids = ? WHERE id = ?").run(JSON.stringify(savedIds), taskId);
-
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      try {
-          log(`开始扫描 OpenList...`);
-          const olRes = await refreshOpenList(targetCid);
-          if (olRes.success) {
-            log(`成功扫描 OpenList 生成 STRM`);
-          } else {
-            log(`OpenList 扫描失败: ${olRes.msg}`);
-          }
-      } catch (e) {
-          log(`OpenList 扫描失败`);
-      }
+             log(`开始扫描 OpenList 路径: ${scanPath}`);
+             // We use a modified refreshOpenList that takes a path string directly
+             const olRes = await refreshOpenListPath(scanPath); 
+             if (olRes.success) {
+                log(`OpenList 扫描请求成功`);
+             } else {
+                log(`OpenList 扫描失败: ${olRes.msg}`);
+             }
+        } else {
+            log(`未配置分类路径，跳过 OpenList 精确扫描 (仅支持 CID 扫描可能不准确)`);
+            // Fallback to CID scan if we implemented it, but user specifically asked for path scan.
+        }
       
-      updateStatus(isCron ? 'pending' : 'completed');
-      log(`任务执行完成`);
+        updateStatus(isCron ? 'pending' : 'completed');
+        log(`任务执行完成`);
 
     } else if (saveResult.status === 'exists') {
       log(`文件已存在(115自动去重)`);
@@ -333,6 +381,43 @@ async function executeTask(taskId: number, isCron = false) {
     updateStatus(isCron ? 'pending' : 'error');
   }
 }
+
+// Helper for OpenList Path Scan
+async function refreshOpenListPath(path: string) {
+    const settings = getSettings();
+    if (!settings.ol_url || !settings.ol_token) {
+        return { success: false, msg: "OpenList 未配置" };
+    }
+    
+    // Ensure path starts with / if not
+    if (!path.startsWith('/')) path = '/' + path;
+
+    // Remove double slashes
+    path = path.replace(/\/\//g, '/');
+
+    try {
+        const baseUrl = settings.ol_url.replace(/\/$/, "");
+        const res = await axios.post(`${baseUrl}/api/admin/scan/start`, {
+            path: path,
+            limit: 0
+        }, {
+            headers: {
+                'Authorization': settings.ol_token,
+                'Content-Type': 'application/json'
+            },
+            timeout: 10000
+        });
+
+        if (res.data.code === 200) {
+            return { success: true, msg: "扫描请求已发送" };
+        } else {
+            return { success: false, msg: `API错误: ${res.data.message} (Code: ${res.data.code})` };
+        }
+    } catch (e: any) {
+        return { success: false, msg: "请求 OpenList 异常: " + e.message };
+    }
+}
+
 
 async function startServer() {
   const app = express();
@@ -453,6 +538,20 @@ async function startServer() {
     res.json({ success: true });
   });
 
+  app.post('/api/tasks/:id/replace-link', (req, res) => {
+    const { share_url, share_code } = req.body;
+    const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(req.params.id);
+    if (!task) return res.status(404).json({ error: 'Task not found' });
+
+    db.prepare('UPDATE tasks SET share_url = ?, share_code = ?, status = ?, last_share_hash = NULL WHERE id = ?')
+      .run(share_url, share_code || '', 'pending', req.params.id);
+    
+    // Trigger execution immediately
+    executeTask(Number(req.params.id));
+    
+    res.json({ success: true });
+  });
+
   app.post('/api/tasks/:id/run', (req, res) => {
     const taskId = parseInt(req.params.id);
     executeTask(taskId, false);
@@ -460,7 +559,7 @@ async function startServer() {
   });
 
   app.get('/api/tasks/:id/logs', (req, res) => {
-    const logs = db.prepare('SELECT * FROM logs WHERE task_id = ? ORDER BY created_at DESC').all(req.params.id);
+    const logs = db.prepare('SELECT * FROM logs WHERE task_id = ? ORDER BY created_at ASC').all(req.params.id);
     res.json(logs);
   });
 

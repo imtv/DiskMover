@@ -4,11 +4,11 @@ import { Save, Key, FolderTree, AlertCircle, ChevronRight, ChevronLeft, Folder, 
 export default function Settings115() {
   const [settings, setSettings] = useState({
     cookie_115: '',
-    cat_tv_cid: '0', cat_tv_name: '电视剧',
-    cat_movie_cid: '0', cat_movie_name: '电影',
-    cat_variety_cid: '0', cat_variety_name: '综艺',
-    cat_anime_cid: '0', cat_anime_name: '动漫',
-    cat_other_cid: '0', cat_other_name: '其他'
+    cat_tv_cid: '0', cat_tv_name: '电视剧', cat_tv_path: '',
+    cat_movie_cid: '0', cat_movie_name: '电影', cat_movie_path: '',
+    cat_variety_cid: '0', cat_variety_name: '综艺', cat_variety_path: '',
+    cat_anime_cid: '0', cat_anime_name: '动漫', cat_anime_path: '',
+    cat_other_cid: '0', cat_other_name: '其他', cat_other_path: ''
   });
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -100,10 +100,20 @@ export default function Settings115() {
 
   const handleSelectFolder = (folder: any) => {
     if (currentCatId) {
+      // Construct path from history + current folder
+      // This is an approximation. Ideally we fetch the path from API or build it up.
+      // folderHistory has the path up to current.
+      const path = folderHistory.map(h => h.name).join('/') + '/' + folder.name;
+      // Remove "根目录" from start if present, or replace with something else?
+      // Usually 115 root is just /. 
+      // Let's just use the constructed path for now, user can edit it if needed.
+      // Actually, let's just use the names.
+      
       setSettings(prev => ({
         ...prev,
         [`cat_${currentCatId}_cid`]: folder.cid,
-        [`cat_${currentCatId}_name`]: folder.name
+        [`cat_${currentCatId}_name`]: folder.name,
+        [`cat_${currentCatId}_path`]: path.replace('根目录', '') || '/'
       }));
     }
     setIsSelectorOpen(false);
@@ -174,7 +184,7 @@ export default function Settings115() {
                     选择目录
                   </button>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                   <div>
                     <label className="block text-xs text-zinc-500 mb-1">目录名称</label>
                     <input
@@ -191,6 +201,17 @@ export default function Settings115() {
                       readOnly
                       value={settings[`cat_${cat.id}_cid` as keyof typeof settings]}
                       className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-400 cursor-not-allowed font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-zinc-500 mb-1">目录完整路径 (OpenList用)</label>
+                    <input
+                      type="text"
+                      name={`cat_${cat.id}_path`}
+                      value={settings[`cat_${cat.id}_path` as keyof typeof settings]}
+                      onChange={handleChange}
+                      placeholder="/分类/路径"
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-200 font-mono"
                     />
                   </div>
                 </div>
