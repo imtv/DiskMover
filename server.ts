@@ -377,16 +377,14 @@ async function executeTask(taskId: number, isCron = false) {
              const olRes = await refreshOpenListPath(scanPath); 
              if (olRes.success) {
                 log(`OpenList 扫描请求成功`);
-                updateStatus(isCron ? 'pending' : 'scanned');
              } else {
                 log(`OpenList 扫描失败: ${olRes.msg}`);
-                updateStatus(isCron ? 'pending' : 'completed');
              }
         } else {
             log(`未配置分类路径，跳过 OpenList 精确扫描 (仅支持 CID 扫描可能不准确)`);
-            updateStatus(isCron ? 'pending' : 'completed');
         }
       
+        updateStatus(isCron ? 'pending' : 'completed');
         log(`任务执行完成`);
 
     } else if (saveResult.status === 'exists') {
