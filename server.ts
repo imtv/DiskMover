@@ -133,54 +133,22 @@ function extractShareCode(url: string) {
   return { code, password };
 }
 
-async function refreshOpenList(targetCid: string) {
-  const settings = getSettings();
-  if (!settings.ol_url || !settings.ol_token) {
-      return { success: false, msg: "OpenList 未配置" };
-  }
-
-  try {
-      const pathRes = await service115.getPath(settings.cookie_115, targetCid);
-      if (!pathRes.success || !pathRes.path) {
-          return { success: false, msg: "获取目标路径失败" };
-      }
-
-      let fullPath = pathRes.path.map((p: any) => p.name).join('/');
-      if (fullPath.startsWith('根目录/')) {
-          fullPath = fullPath.substring(4);
-      }
-      
-      const prefix = settings.ol_mount_prefix || '';
-      const scanPath = prefix ? `${prefix}/${fullPath}` : `/${fullPath}`;
-
-      console.log(`[OpenList] 准备扫描路径: ${scanPath}`);
-
-      const baseUrl = settings.ol_url.replace(/\/$/, "");
-      const res = await axios.post(`${baseUrl}/api/admin/scan/start`, {
-          path: scanPath,
-          limit: 0
-      }, {
-          headers: {
-              'Authorization': settings.ol_token,
-              'Content-Type': 'application/json'
-          },
-          timeout: 10000
-      });
-
-      if (res.data.code === 200) {
-          return { success: true, msg: "扫描请求已发送" };
-      } else {
-          if (res.data.code === 404 && res.data.message && res.data.message.includes("search not available")) {
-              return { success: false, msg: "OpenList未开启索引功能，请去后台开启！" };
-          }
-          return { success: false, msg: `API错误: ${res.data.message} (Code: ${res.data.code})` };
-      }
-  } catch (e: any) {
-      return { success: false, msg: "请求 OpenList 异常: " + e.message };
-  }
+// Helper for Path Mapping
+function applyPathMapping(fullPath: string, settings: any): string {
+    if (settings.root_115_path && settings.ol_115_mount_point) {
+        const rootPath = settings.root_115_path.replace(/\/$/, '');
+        const mountPoint = settings.ol_115_mount_point.replace(/\/$/, '');
+        
+        if (fullPath.startsWith(rootPath)) {
+            const mapped = fullPath.replace(rootPath, mountPoint);
+            console.log(`[PathMap] 应用映射: ${fullPath} -> ${mapped}`);
+            return mapped;
+        }
+    }
+    return fullPath;
 }
 
-async function executeTask(taskId: number, isCron = false) {
+async function executeTask(taskId: number, isCron = false, successStatus = 'completed') {
   const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId) as any;
   if (!task) return;
 
@@ -342,38 +310,13 @@ async function executeTask(taskId: number, isCron = false) {
         }
 
         // Step 4: OpenList Scan
-        // Construct the full path to scan
-        // Path = CategoryPath + "/" + TaskName
-        // If CategoryPath is empty, we can't scan efficiently.
-        
         if (targetPath) {
              let fullPath115 = targetPath.endsWith('/') ? targetPath + task.name : targetPath + '/' + task.name;
-             
              log(`文件保存完整路径: ${fullPath115}`);
 
-             // Apply Mapping
-             // settings.root_115_path (e.g. /Root/Videos-115) -> settings.ol_115_mount_point (e.g. /115Drive)
-             
-             let scanPath = fullPath115;
-             if (settings.root_115_path && settings.ol_115_mount_point) {
-                 const rootPath = settings.root_115_path.replace(/\/$/, ''); // Remove trailing slash
-                 const mountPoint = settings.ol_115_mount_point.replace(/\/$/, ''); // Remove trailing slash
-                 
-                 log(`OpenList映射配置: root=[${rootPath}], mount=[${mountPoint}]`);
-
-                 if (fullPath115.startsWith(rootPath)) {
-                     // Replace only the first occurrence
-                     scanPath = fullPath115.replace(rootPath, mountPoint);
-                     log(`应用路径映射: ${fullPath115} -> ${scanPath}`);
-                 } else {
-                     log(`路径不匹配映射规则，将使用原始路径扫描`);
-                 }
-             } else {
-                 log(`未配置路径映射，将使用原始路径扫描`);
-             }
-
+             const scanPath = applyPathMapping(fullPath115, settings);
              log(`开始扫描 OpenList 路径: ${scanPath}`);
-             // We use a modified refreshOpenList that takes a path string directly
+
              const olRes = await refreshOpenListPath(scanPath); 
              if (olRes.success) {
                 log(`OpenList 扫描请求成功`);
@@ -384,12 +327,12 @@ async function executeTask(taskId: number, isCron = false) {
             log(`未配置分类路径，跳过 OpenList 精确扫描 (仅支持 CID 扫描可能不准确)`);
         }
       
-        updateStatus(isCron ? 'pending' : 'completed');
+        updateStatus(isCron ? 'pending' : successStatus);
         log(`任务执行完成`);
 
     } else if (saveResult.status === 'exists') {
       log(`文件已存在(115自动去重)`);
-      updateStatus(isCron ? 'pending' : 'completed');
+      updateStatus(isCron ? 'pending' : successStatus);
     } else {
       log(`转存失败: ${saveResult.msg}`);
       updateStatus(isCron ? 'pending' : 'error');
@@ -576,7 +519,7 @@ async function startServer() {
       .run(share_url, share_code || '', 'link_replaced', req.params.id);
     
     // Trigger execution immediately
-    executeTask(Number(req.params.id));
+    executeTask(Number(req.params.id), false, 'link_replaced');
     
     res.json({ success: true });
   });
@@ -618,17 +561,7 @@ async function startServer() {
     }
 
     let fullPath115 = targetPath.endsWith('/') ? targetPath + task.name : targetPath + '/' + task.name;
-    let scanPath = fullPath115;
-
-    // Apply Mapping
-    if (settings.root_115_path && settings.ol_115_mount_point) {
-        const rootPath = settings.root_115_path.replace(/\/$/, '');
-        const mountPoint = settings.ol_115_mount_point.replace(/\/$/, '');
-        
-        if (fullPath115.startsWith(rootPath)) {
-            scanPath = fullPath115.replace(rootPath, mountPoint);
-        }
-    }
+    let scanPath = applyPathMapping(fullPath115, settings);
 
     try {
         const result = await refreshOpenListPath(scanPath);
