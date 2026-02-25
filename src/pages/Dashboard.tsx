@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Trash2, FileText, FolderOpen, CheckCircle2, Clock, XCircle, RefreshCw, Link as LinkIcon, Pin, ScanText } from 'lucide-react';
+import { Play, Trash2, FileText, FolderOpen, CheckCircle2, Clock, XCircle, RefreshCw, Link as LinkIcon, Pin, ScanText, Logs } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuth } from '../context/AuthContext';
 
@@ -127,6 +127,13 @@ export default function Dashboard() {
     e.preventDefault();
     if (!currentTaskId) return;
     
+    // Add separator log
+    await fetch(`/api/tasks/${currentTaskId}/logs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: '----------------------------------------\n[系统] 更换链接并重新执行\n----------------------------------------' })
+    });
+
     await fetch(`/api/tasks/${currentTaskId}/replace-link`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -135,7 +142,8 @@ export default function Dashboard() {
     
     setIsReplaceModalOpen(false);
     fetchTasks();
-    alert('链接已更新并开始重新执行');
+    // Auto open logs
+    handleViewLogs(currentTaskId);
   };
 
   const handleClearAllTasks = async () => {
@@ -243,11 +251,11 @@ export default function Dashboard() {
               </div>
             )}
           </div>
-          <div className="pt-2 flex justify-end">
+          <div className="pt-2 flex justify-center">
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full sm:w-auto px-8 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-600/50 text-white font-medium transition-colors shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-2"
+              className="w-full sm:w-auto px-12 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-600/50 text-white font-medium transition-colors shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-2"
             >
               {isSubmitting ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Play className="w-5 h-5" />}
               开始转存
@@ -284,7 +292,7 @@ export default function Dashboard() {
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                   <div className="flex items-start gap-4 min-w-0">
                     <div className={`p-3 rounded-xl shrink-0 ${task.is_pinned ? 'bg-amber-500/10 text-amber-400' : 'bg-zinc-800/50 text-indigo-400'}`}>
-                      {task.is_pinned ? <Pin className="w-6 h-6 fill-current" /> : <FileText className="w-6 h-6" />}
+                      <FileText className="w-6 h-6" />
                     </div>
                     <div className="min-w-0 space-y-1">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -348,7 +356,7 @@ export default function Dashboard() {
                       className="p-2 text-zinc-400 hover:text-indigo-400 hover:bg-indigo-400/10 rounded-lg transition-colors"
                       title="查看日志"
                     >
-                      <FileText className="w-5 h-5" />
+                      <Logs className="w-5 h-5" />
                     </button>
                     <button
                       onClick={() => handleOpenReplaceModal(task)}

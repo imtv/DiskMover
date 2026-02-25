@@ -593,6 +593,12 @@ async function startServer() {
     res.json(logs);
   });
 
+  app.post('/api/tasks/:id/logs', (req, res) => {
+    const { message } = req.body;
+    db.prepare('INSERT INTO logs (task_id, message) VALUES (?, ?)').run(req.params.id, message);
+    res.json({ success: true });
+  });
+
   app.post('/api/tasks/:id/refresh-index', async (req, res) => {
     const taskId = parseInt(req.params.id);
     const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId) as any;
