@@ -23,6 +23,7 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/server.ts ./
+COPY --from=builder /app/src ./src
 
 # Create data directory for SQLite database
 RUN mkdir -p /app/data && chown node:node /app/data

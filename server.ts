@@ -4,7 +4,7 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import * as cron from 'node-cron';
-import service115 from './src/services/service115';
+import service115 from './src/services/service115.ts';
 import axios from 'axios';
 import fs from 'fs';
 
