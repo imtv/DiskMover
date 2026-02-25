@@ -341,6 +341,8 @@ async function executeTask(taskId: number, isCron = false) {
         if (targetPath) {
              let fullPath115 = targetPath.endsWith('/') ? targetPath + task.name : targetPath + '/' + task.name;
              
+             log(`文件保存完整路径: ${fullPath115}`);
+
              // Apply Mapping
              // settings.root_115_path (e.g. /Root/Videos-115) -> settings.ol_115_mount_point (e.g. /115Drive)
              

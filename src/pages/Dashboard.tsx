@@ -41,6 +41,21 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    let logInterval: NodeJS.Timeout;
+    if (isLogModalOpen && currentTaskId) {
+      // Poll logs every 1 second when modal is open
+      logInterval = setInterval(async () => {
+        const res = await fetch(`/api/tasks/${currentTaskId}/logs`);
+        const data = await res.json();
+        setLogs(data);
+      }, 1000);
+    }
+    return () => {
+      if (logInterval) clearInterval(logInterval);
+    };
+  }, [isLogModalOpen, currentTaskId]);
+
   const fetchTasks = async () => {
     const res = await fetch('/api/tasks');
     const data = await res.json();
@@ -60,11 +75,13 @@ export default function Dashboard() {
       return;
     }
     setIsSubmitting(true);
-    await fetch('/api/tasks', {
+    const res = await fetch('/api/tasks', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, share_url: shareUrl, share_code: shareCode, category, cron_expr: cronExpr }),
     });
+    const data = await res.json();
+    
     setName('');
     setShareUrl('');
     setShareCode('');
@@ -72,6 +89,10 @@ export default function Dashboard() {
     setCronExpr('');
     setIsSubmitting(false);
     fetchTasks();
+
+    if (data.success && data.id) {
+        handleViewLogs(data.id);
+    }
   };
 
   const handleDeleteTask = async (id: number) => {
@@ -154,7 +175,7 @@ export default function Dashboard() {
                 value={shareUrl}
                 onChange={(e) => setShareUrl(e.target.value)}
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                placeholder="https://115.com/s/..."
+                placeholder="https://115cdn.com/s/..."
               />
             </div>
             <div>
@@ -165,7 +186,7 @@ export default function Dashboard() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                placeholder="例如：我的电影合集"
+                placeholder="那年花开月正圆"
               />
             </div>
             <div>
@@ -175,7 +196,7 @@ export default function Dashboard() {
                 value={shareCode}
                 onChange={(e) => setShareCode(e.target.value)}
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                placeholder="可选，未填写将尝试自动解析"
+                placeholder="可选"
               />
             </div>
             <div>
@@ -318,15 +339,13 @@ export default function Dashboard() {
                     >
                       <FileText className="w-5 h-5" />
                     </button>
-                    {!isAuthenticated && (
-                      <button
-                        onClick={() => handleOpenReplaceModal(task)}
-                        className="p-2 text-zinc-400 hover:text-amber-400 hover:bg-amber-400/10 rounded-lg transition-colors"
-                        title="更换链接"
-                      >
-                        <RefreshCw className="w-5 h-5" />
-                      </button>
-                    )}
+                    <button
+                      onClick={() => handleOpenReplaceModal(task)}
+                      className="p-2 text-zinc-400 hover:text-amber-400 hover:bg-amber-400/10 rounded-lg transition-colors"
+                      title="更换链接"
+                    >
+                      <RefreshCw className="w-5 h-5" />
+                    </button>
                     {isAuthenticated && (
                       <button
                         onClick={() => handleDeleteTask(task.id)}

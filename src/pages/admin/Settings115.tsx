@@ -184,18 +184,9 @@ export default function Settings115() {
                     选择目录
                   </button>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-xs text-zinc-500 mb-1">目录名称</label>
-                    <input
-                      type="text"
-                      readOnly
-                      value={settings[`cat_${cat.id}_name` as keyof typeof settings]}
-                      className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-400 cursor-not-allowed"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-zinc-500 mb-1">目录 ID (CID)</label>
+                    <label className="block text-xs text-zinc-500 mb-1">目录CID</label>
                     <input
                       type="text"
                       readOnly
@@ -204,7 +195,7 @@ export default function Settings115() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-zinc-500 mb-1">目录完整路径 (OpenList用)</label>
+                    <label className="block text-xs text-zinc-500 mb-1">目录完整路径</label>
                     <input
                       type="text"
                       name={`cat_${cat.id}_path`}
