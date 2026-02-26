@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Trash2, FileText, FolderOpen, CheckCircle2, Clock, XCircle, RefreshCw, Link as LinkIcon, Pin, ScanText, Logs, Sun, Moon } from 'lucide-react';
+import { Play, Trash2, FileText, FolderOpen, CheckCircle2, Clock, XCircle, RefreshCw, Link as LinkIcon, Pin, ScanText, Logs, Sun, Moon, Film } from 'lucide-react';
 import { formatInTimeZone } from 'date-fns-tz';
 import { useAuth } from '../context/AuthContext';
 
@@ -13,6 +13,7 @@ interface Task {
   status: string;
   created_at: string;
   is_pinned: number;
+  resource_url?: string;
 }
 
 export default function Dashboard() {
@@ -30,6 +31,7 @@ export default function Dashboard() {
   const [shareCode, setShareCode] = useState('');
   const [category, setCategory] = useState('');
   const [cronExpr, setCronExpr] = useState('');
+  const [resourceUrl, setResourceUrl] = useState('');
 
   const [isReplaceModalOpen, setIsReplaceModalOpen] = useState(false);
   const [replaceShareUrl, setReplaceShareUrl] = useState('');
@@ -89,7 +91,7 @@ export default function Dashboard() {
     const res = await fetch('/api/tasks', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, share_url: shareUrl, share_code: shareCode, category, cron_expr: cronExpr }),
+      body: JSON.stringify({ name, share_url: shareUrl, share_code: shareCode, category, cron_expr: cronExpr, resource_url: resourceUrl }),
     });
     const data = await res.json();
     
@@ -98,6 +100,7 @@ export default function Dashboard() {
     setShareCode('');
     setCategory('');
     setCronExpr('');
+    setResourceUrl('');
     setIsSubmitting(false);
     fetchTasks();
 
@@ -216,6 +219,16 @@ export default function Dashboard() {
                 placeholder="可选"
               />
             </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-zinc-400 mb-1.5">资源链接</label>
+              <input
+                type="url"
+                value={resourceUrl}
+                onChange={(e) => setResourceUrl(e.target.value)}
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                placeholder="可选，例如豆瓣、IMDB 链接"
+              />
+            </div>
             <div>
               <label className="block text-sm font-medium text-zinc-400 mb-2">分类</label>
               <div className="flex flex-wrap gap-2">
@@ -314,6 +327,11 @@ export default function Dashboard() {
                     <div className="min-w-0 space-y-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="font-semibold text-zinc-100 text-lg truncate">{task.name || '未命名'}</h3>
+                        {task.resource_url && (
+                          <a href={task.resource_url} target="_blank" rel="noopener noreferrer" title="查看资源链接">
+                            <Film className="w-5 h-5 text-amber-400 hover:text-amber-300" />
+                          </a>
+                        )}
                         <span className="px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-300 text-xs font-medium">
                           {categoryMap[task.category] || '其他'}
                         </span>

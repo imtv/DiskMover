@@ -48,7 +48,8 @@ db.exec(`
     executed_share_urls TEXT DEFAULT '[]',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    is_pinned INTEGER DEFAULT 0
+    is_pinned INTEGER DEFAULT 0,
+    resource_url TEXT
   );
   CREATE TABLE IF NOT EXISTS logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -58,9 +59,9 @@ db.exec(`
   );
 `);
 
-// Migration: Add executed_share_urls column if not exists
+// Migration: Add resource_url column if not exists
 try {
-  db.prepare('ALTER TABLE tasks ADD COLUMN executed_share_urls TEXT DEFAULT \'[]\'').run();
+  db.prepare('ALTER TABLE tasks ADD COLUMN resource_url TEXT').run();
 } catch (e) {
   // Column likely already exists
 }
@@ -525,7 +526,7 @@ async function startServer() {
   });
 
   app.post('/api/tasks', (req, res) => {
-    const { name, share_url, share_code, category, cron_expr } = req.body;
+    const { name, share_url, share_code, category, cron_expr, resource_url } = req.body;
 
     // Check for uniqueness across all tasks
     const allTasks = db.prepare('SELECT executed_share_urls FROM tasks').all() as { executed_share_urls: string }[];
@@ -543,8 +544,8 @@ async function startServer() {
     // We store the password in share_code if it was provided, else extract it
     const receiveCode = share_code || urlInfo.password;
 
-    const stmt = db.prepare('INSERT INTO tasks (name, share_url, share_code, category, cron_expr) VALUES (?, ?, ?, ?, ?)');
-    const info = stmt.run(name, share_url, receiveCode, category, cron_expr);
+    const stmt = db.prepare('INSERT INTO tasks (name, share_url, share_code, category, cron_expr, resource_url) VALUES (?, ?, ?, ?, ?, ?)');
+    const info = stmt.run(name, share_url, receiveCode, category, cron_expr, resource_url);
     const taskId = info.lastInsertRowid as number;
     
     const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId);
