@@ -168,12 +168,10 @@ export default function Dashboard() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">115网盘</h1>
-          <p className="text-zinc-600 dark:text-zinc-400">提交 115 分享链接，系统将自动帮您转存并重命名</p>
+          <p className="text-zinc-600 dark:text-zinc-400">提交 115 分享链接，系统将自动帮您转存并整理</p>
         </div>
         <div className="flex items-center gap-3">
-            {isAuthenticated && (
-              <a href="/admin" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 transition-colors text-sm font-medium">进入后台</a>
-            )}
+
         </div>
       </div>
 
@@ -193,7 +191,7 @@ export default function Dashboard() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-zinc-400 mb-1.5">影片名 (重命名为) *</label>
+              <label className="block text-sm font-medium text-zinc-400 mb-1.5">影片名 *</label>
               <input
                 type="text"
                 required
@@ -220,11 +218,11 @@ export default function Dashboard() {
                 value={resourceUrl}
                 onChange={(e) => setResourceUrl(e.target.value)}
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                placeholder="可选，例如豆瓣、IMDB 链接"
+                placeholder="可选，例如hdhive、豆瓣、IMDB 链接"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-zinc-400 mb-2">分类</label>
+              <label className="block text-sm font-medium text-zinc-400 mb-2">分类 *</label>
               <div className="flex flex-wrap gap-2">
                 {[
                   { id: 'tv', label: '电视剧' },
@@ -452,7 +450,7 @@ export default function Dashboard() {
                   value={replaceShareUrl}
                   onChange={(e) => setReplaceShareUrl(e.target.value)}
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-200 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                  placeholder="https://115.com/s/..."
+                  placeholder="https://115cdn.com/s/..."
                 />
               </div>
               <div>

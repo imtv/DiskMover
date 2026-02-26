@@ -52,9 +52,6 @@ export default function Login() {
         <h2 className="text-2xl font-bold text-center mb-2">
           管理员登录
         </h2>
-        <p className="text-zinc-400 text-center mb-8">
-          默认账号密码：admin / admin123
-        </p>
 
         {error && (
           <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm text-center">
