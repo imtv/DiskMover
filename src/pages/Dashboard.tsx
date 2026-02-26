@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Play, Trash2, FileText, FolderOpen, CheckCircle2, Clock, XCircle, RefreshCw, Link as LinkIcon, Pin, ScanText, Logs } from 'lucide-react';
-import { format } from 'date-fns';
+import { formatInTimeZone } from 'date-fns-tz';
 import { useAuth } from '../context/AuthContext';
 
 interface Task {
@@ -325,7 +325,7 @@ export default function Dashboard() {
                       </a>
                       <div className="text-xs text-zinc-500 flex items-center gap-1.5 pt-1">
                         <Clock className="w-3.5 h-3.5" />
-                        {format(new Date(task.created_at), 'yyyy-MM-dd HH:mm:ss')}
+                        {formatInTimeZone(new Date(task.created_at), 'Asia/Shanghai', 'yyyy-MM-dd HH:mm:ss')}
                       </div>
                     </div>
                   </div>
@@ -405,7 +405,7 @@ export default function Dashboard() {
                 <div className="space-y-2">
                   {logs.map((log) => (
                     <div key={log.id} className="flex gap-4 text-zinc-300 border-b border-zinc-800/50 pb-2">
-                      <span className="text-zinc-500 shrink-0">[{format(new Date(log.created_at), 'HH:mm:ss')}]</span>
+                      <span className="text-zinc-500 shrink-0">[{formatInTimeZone(new Date(log.created_at), 'Asia/Shanghai', 'HH:mm:ss')}]</span>
                       <span className="break-all">{log.message}</span>
                     </div>
                   ))}
