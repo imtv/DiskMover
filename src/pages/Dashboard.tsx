@@ -187,11 +187,11 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="space-y-8 bg-zinc-950 min-h-screen p-8 dark">
-      <div className="flex justify-between items-center">
+    <div className="space-y-6 bg-zinc-950 min-h-screen p-4 sm:p-8 dark">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">115网盘</h1>
-          <p className="text-zinc-600 dark:text-zinc-400">提交 115 分享链接，系统将自动帮您转存并整理</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">115网盘</h1>
+          <p className="text-sm sm:text-base text-zinc-600 dark:text-zinc-400">提交 115 分享链接，系统将自动帮您转存并整理</p>
         </div>
         <div className="flex items-center gap-3">
 
@@ -199,8 +199,8 @@ export default function Dashboard() {
       </div>
 
       {/* Create Task Form */}
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl p-6">
-        <form onSubmit={handleCreateTask} className="space-y-5">
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl p-4 sm:p-6">
+        <form onSubmit={handleCreateTask} className="space-y-4 sm:space-y-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-zinc-400 mb-1.5">115 分享链接 *</label>
@@ -317,9 +317,9 @@ export default function Dashboard() {
             <p>暂无任务记录</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-4">
+          <div className="grid grid-cols-1 gap-3 sm:gap-4">
             {tasks.map((task) => (
-              <div className={`bg-white dark:bg-zinc-900 border rounded-2xl p-5 shadow-xl transition-colors group ${task.is_pinned ? 'border-amber-500/30 bg-amber-500/5' : 'border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700'}`}>
+              <div className={`bg-white dark:bg-zinc-900 border rounded-2xl p-4 sm:p-5 shadow-xl transition-colors group ${task.is_pinned ? 'border-amber-500/30 bg-amber-500/5' : 'border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700'}`}>
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                   <div className="flex items-start gap-4 min-w-0">
                     <div className={`p-3 rounded-xl shrink-0 ${task.is_pinned ? 'bg-amber-500/10 text-amber-400' : 'bg-zinc-800/50 text-indigo-400'}`}>
