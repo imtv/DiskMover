@@ -330,7 +330,7 @@ export default function Dashboard() {
                         <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 text-lg truncate">{task.name || '未命名'}</h3>
                         {task.resource_url && (
                           <a href={task.resource_url} target="_blank" rel="noopener noreferrer" title="查看资源链接">
-                            <Film className="w-5 h-5 text-amber-400 hover:text-amber-300" />
+                            <Film className="w-5 h-5 text-green-400 hover:text-green-300" />
                           </a>
                         )}
                         <span className="px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-300 text-xs font-medium">
