@@ -21,6 +21,10 @@ if (dbDir !== '.' && !fs.existsSync(dbDir)) {
     fs.mkdirSync(dbDir, { recursive: true });
 }
 
+function getCSTNow() {
+  return new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false }).replace(/\//g, '-');
+}
+
 const db = new Database(dbPath);
 
 // Initialize DB
@@ -46,8 +50,8 @@ db.exec(`
     last_saved_file_ids TEXT,
     last_success_date TEXT,
     executed_share_urls TEXT DEFAULT '[]',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME,
+    updated_at DATETIME,
     is_pinned INTEGER DEFAULT 0,
     resource_url TEXT
   );
@@ -55,7 +59,7 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     task_id INTEGER,
     message TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at DATETIME
   );
 `);
 
@@ -158,7 +162,7 @@ async function executeTask(taskId: number, isCron = false, successStatus = 'comp
   const cookie = settings.cookie_115;
 
   const log = (msg: string) => {
-    db.prepare('INSERT INTO logs (task_id, message) VALUES (?, ?)').run(taskId, msg);
+    db.prepare('INSERT INTO logs (task_id, message, created_at) VALUES (?, ?, ?)').run(taskId, msg, getCSTNow());
     console.log(`[Task ${taskId}] ${msg}`);
   };
 
@@ -172,7 +176,7 @@ async function executeTask(taskId: number, isCron = false, successStatus = 'comp
     return;
   }
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getCSTNow().split(' ')[0];
 
   if (isCron && task.status === 'pending' && task.last_success_date === todayStr) {
     log(`今日已成功转存，跳过本次执行`);
@@ -381,12 +385,12 @@ async function refreshOpenListPath(path: string, taskId?: number) {
         // Calculate parent path for refresh
         // e.g. /Videos-115/影集/除恶 -> /Videos-115/影集
         const parentPath = path.substring(0, path.lastIndexOf('/')) || '/';
-        const log = (msg: string) => {
-            if (taskId) {
-              db.prepare('INSERT INTO logs (task_id, message) VALUES (?, ?)').run(taskId, msg);
-            }
-            console.log(`[Task ${taskId || 'N/A'}] ${msg}`);
-        };
+    const log = (msg: string) => {
+        if (taskId) {
+          db.prepare('INSERT INTO logs (task_id, message, created_at) VALUES (?, ?, ?)').run(taskId, msg, getCSTNow());
+        }
+        console.log(`[Task ${taskId || 'N/A'}] ${msg}`);
+    };
 
         log(`[OpenList] 正在强制刷新父路径: ${parentPath}`);
         try {
@@ -544,8 +548,8 @@ async function startServer() {
     // We store the password in share_code if it was provided, else extract it
     const receiveCode = share_code || urlInfo.password;
 
-    const stmt = db.prepare('INSERT INTO tasks (name, share_url, share_code, category, cron_expr, resource_url) VALUES (?, ?, ?, ?, ?, ?)');
-    const info = stmt.run(name, share_url, receiveCode, category, cron_expr, resource_url);
+    const stmt = db.prepare('INSERT INTO tasks (name, share_url, share_code, category, cron_expr, resource_url, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+    const info = stmt.run(name, share_url, receiveCode, category, cron_expr, resource_url, getCSTNow(), getCSTNow());
     const taskId = info.lastInsertRowid as number;
     
     const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId);
@@ -589,10 +593,10 @@ async function startServer() {
     const urlInfo = extractShareCode(share_url);
     const finalShareCode = share_code || urlInfo.password;
 
-    db.prepare('INSERT INTO logs (task_id, message) VALUES (?, ?)').run(req.params.id, '[系统] 更换链接并重新执行');
+    db.prepare('INSERT INTO logs (task_id, message, created_at) VALUES (?, ?, ?)').run(req.params.id, '[系统] 更换链接并重新执行', getCSTNow());
 
-    db.prepare('UPDATE tasks SET share_url = ?, share_code = ?, status = ?, last_share_hash = NULL WHERE id = ?')
-      .run(share_url, finalShareCode, 'link_replaced', req.params.id);
+    db.prepare('UPDATE tasks SET share_url = ?, share_code = ?, status = ?, last_share_hash = NULL, updated_at = ? WHERE id = ?')
+      .run(share_url, finalShareCode, 'link_replaced', getCSTNow(), req.params.id);
     
     // Trigger execution immediately
     executeTask(taskId, false, 'link_replaced');
@@ -626,7 +630,7 @@ async function startServer() {
 
   app.post('/api/tasks/:id/logs', (req, res) => {
     const { message } = req.body;
-    db.prepare('INSERT INTO logs (task_id, message) VALUES (?, ?)').run(req.params.id, message);
+    db.prepare('INSERT INTO logs (task_id, message, created_at) VALUES (?, ?, ?)').run(req.params.id, message, getCSTNow());
     res.json({ success: true });
   });
 
@@ -644,8 +648,8 @@ async function startServer() {
     else if (task.category === 'other') targetPath = settings.cat_other_path;
 
     if (!targetPath) {
-         const time = new Date().toISOString();
-         db.prepare('INSERT INTO logs (task_id, message) VALUES (?, ?)').run(taskId, `❌ [${time}] 手动扫描: 失败 (未配置分类路径)`);
+         const time = getCSTNow();
+         db.prepare('INSERT INTO logs (task_id, message, created_at) VALUES (?, ?, ?)').run(taskId, `❌ [${time}] 手动扫描: 失败 (未配置分类路径)`, time);
          return res.status(400).json({ success: false, msg: "未配置分类路径" });
     }
 
@@ -654,17 +658,17 @@ async function startServer() {
 
     try {
         const result = await refreshOpenListPath(scanPath, taskId);
-        const time = new Date().toISOString();
+        const time = getCSTNow();
         if (result.success) {
-            db.prepare('INSERT INTO logs (task_id, message) VALUES (?, ?)').run(taskId, `✅ [${time}] 手动扫描: 请求已发送 (${scanPath})`);
-            db.prepare('UPDATE tasks SET status = ? WHERE id = ?').run('scanned', taskId);
+            db.prepare('INSERT INTO logs (task_id, message, created_at) VALUES (?, ?, ?)').run(taskId, `✅ [${time}] 手动扫描: 请求已发送 (${scanPath})`, time);
+            db.prepare('UPDATE tasks SET status = ?, updated_at = ? WHERE id = ?').run('scanned', time, taskId);
         } else {
-            db.prepare('INSERT INTO logs (task_id, message) VALUES (?, ?)').run(taskId, `❌ [${time}] 手动扫描: 失败 (${result.msg})`);
+            db.prepare('INSERT INTO logs (task_id, message, created_at) VALUES (?, ?, ?)').run(taskId, `❌ [${time}] 手动扫描: 失败 (${result.msg})`, time);
         }
         res.json(result);
     } catch (e: any) {
-        const time = new Date().toISOString();
-        db.prepare('INSERT INTO logs (task_id, message) VALUES (?, ?)').run(taskId, `❌ [${time}] 手动扫描: 错误`);
+        const time = getCSTNow();
+        db.prepare('INSERT INTO logs (task_id, message, created_at) VALUES (?, ?, ?)').run(taskId, `❌ [${time}] 手动扫描: 错误`, time);
         res.status(500).json({ success: false, msg: e.message });
     }
   });

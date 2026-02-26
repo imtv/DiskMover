@@ -9,7 +9,7 @@ export default function AdminLayout() {
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-zinc-950 text-zinc-50">
-      <aside className="w-full md:w-64 bg-zinc-900 border-b md:border-b-0 md:border-r border-zinc-800 flex flex-col shrink-0">
+      <aside className="w-full md:w-64 bg-zinc-900/80 md:bg-zinc-900 border-b md:border-b-0 md:border-r border-zinc-800 flex flex-col shrink-0 sticky top-0 z-20 backdrop-blur-md md:relative md:top-auto md:z-auto">
         <div className="p-4 md:p-6 flex items-center justify-between md:justify-start gap-3">
           <div className="flex items-center gap-3">
             <Cloud className="w-8 h-8 text-indigo-500" />
