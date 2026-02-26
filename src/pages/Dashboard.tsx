@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Trash2, FileText, FolderOpen, CheckCircle2, Clock, XCircle, RefreshCw, Link as LinkIcon, Pin, ScanText, Logs } from 'lucide-react';
+import { Play, Trash2, FileText, FolderOpen, CheckCircle2, Clock, XCircle, RefreshCw, Link as LinkIcon, Pin, ScanText, Logs, Sun, Moon } from 'lucide-react';
 import { formatInTimeZone } from 'date-fns-tz';
 import { useAuth } from '../context/AuthContext';
 
@@ -34,6 +34,16 @@ export default function Dashboard() {
   const [isReplaceModalOpen, setIsReplaceModalOpen] = useState(false);
   const [replaceShareUrl, setReplaceShareUrl] = useState('');
   const [replaceShareCode, setReplaceShareCode] = useState('');
+  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
+
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('theme', theme);
+  }, [theme]);
 
   useEffect(() => {
     fetchTasks();
@@ -164,14 +174,14 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className={`space-y-8 dark:bg-zinc-950 bg-zinc-100 min-h-screen p-8 ${theme === 'dark' ? 'dark' : ''}`}>
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-white mb-2">115网盘</h1>
-        <p className="text-zinc-400">提交 115 分享链接，系统将自动帮您转存并重命名</p>
+        <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white mb-2">115网盘</h1>
+        <p className="text-zinc-600 dark:text-zinc-400">提交 115 分享链接，系统将自动帮您转存并重命名</p>
       </div>
 
       {/* Create Task Form */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-xl p-6">
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl p-6">
         <form onSubmit={handleCreateTask} className="space-y-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="md:col-span-2">
@@ -259,8 +269,22 @@ export default function Dashboard() {
 
       <div className="space-y-4">
         <div className="flex justify-between items-center">
-          <h2 className="text-xl font-semibold text-white">历史任务</h2>
+          <h2 className="text-xl font-semibold text-zinc-900 dark:text-white">历史任务</h2>
           <div className="flex items-center gap-3">
+            <button
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-500/10 text-zinc-400 hover:bg-zinc-500/20 transition-colors text-sm font-medium"
+              >
+                {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                {theme === 'dark' ? '白天' : '黑暗'}
+              </button>
+            <button
+                onClick={() => alert('此功能待开发')}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors text-sm font-medium"
+              >
+                <ScanText className="w-4 h-4" />
+                扫描百度网盘
+              </button>
             {isAuthenticated && tasks.length > 0 && (
               <button
                 onClick={handleClearAllTasks}
