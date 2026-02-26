@@ -126,13 +126,6 @@ export default function Dashboard() {
   const handleReplaceLink = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentTaskId) return;
-    
-    // Add separator log
-    await fetch(`/api/tasks/${currentTaskId}/logs`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: '----------------------------------------\n[系统] 更换链接并重新执行\n----------------------------------------' })
-    });
 
     await fetch(`/api/tasks/${currentTaskId}/replace-link`, {
       method: 'POST',

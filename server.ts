@@ -45,6 +45,7 @@ db.exec(`
     last_share_hash TEXT,
     last_saved_file_ids TEXT,
     last_success_date TEXT,
+    executed_share_urls TEXT DEFAULT '[]',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     is_pinned INTEGER DEFAULT 0
@@ -57,9 +58,9 @@ db.exec(`
   );
 `);
 
-// Migration: Add is_pinned column if not exists
+// Migration: Add executed_share_urls column if not exists
 try {
-  db.prepare('ALTER TABLE tasks ADD COLUMN is_pinned INTEGER DEFAULT 0').run();
+  db.prepare('ALTER TABLE tasks ADD COLUMN executed_share_urls TEXT DEFAULT \'[]\'').run();
 } catch (e) {
   // Column likely already exists
 }
@@ -275,6 +276,14 @@ async function executeTask(taskId: number, isCron = false, successStatus = 'comp
 
     if (saveResult.success) {
         db.prepare("UPDATE tasks SET last_success_date = ? WHERE id = ?").run(todayStr, taskId);
+        
+        // Add current URL to executed list
+        const currentUrls = JSON.parse(task.executed_share_urls || '[]');
+        if (!currentUrls.includes(task.share_url)) {
+            currentUrls.push(task.share_url);
+            db.prepare('UPDATE tasks SET executed_share_urls = ? WHERE id = ?').run(JSON.stringify(currentUrls), taskId);
+        }
+
         log(`成功保存文件`);
 
         await new Promise(resolve => setTimeout(resolve, 3000));
@@ -517,7 +526,18 @@ async function startServer() {
 
   app.post('/api/tasks', (req, res) => {
     const { name, share_url, share_code, category, cron_expr } = req.body;
-    
+
+    // Check for uniqueness across all tasks
+    const allTasks = db.prepare('SELECT executed_share_urls FROM tasks').all() as { executed_share_urls: string }[];
+    const isExecuted = allTasks.some(t => {
+        const urls = JSON.parse(t.executed_share_urls || '[]');
+        return urls.includes(share_url);
+    });
+
+    if (isExecuted) {
+        return res.status(400).json({ success: false, msg: '此分享链接已被其他任务成功执行过，无法重复添加。' });
+    }
+
     const urlInfo = extractShareCode(share_url);
     const finalShareCode = urlInfo.code;
     // We store the password in share_code if it was provided, else extract it
@@ -548,8 +568,22 @@ async function startServer() {
 
   app.post('/api/tasks/:id/replace-link', (req, res) => {
     const { share_url, share_code } = req.body;
-    const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(req.params.id);
+    const taskId = Number(req.params.id);
+    const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId);
     if (!task) return res.status(404).json({ error: 'Task not found' });
+
+    // Check for uniqueness across all tasks
+    const allTasks = db.prepare('SELECT id, executed_share_urls FROM tasks').all() as { id: number, executed_share_urls: string }[];
+    const isExecuted = allTasks.some(t => {
+        // Don't check against the current task's own history if it's the same task
+        if (t.id === taskId) return false;
+        const urls = JSON.parse(t.executed_share_urls || '[]');
+        return urls.includes(share_url);
+    });
+
+    if (isExecuted) {
+        return res.status(400).json({ success: false, msg: '此分享链接已被其他任务成功执行过，无法使用。' });
+    }
 
     const urlInfo = extractShareCode(share_url);
     const finalShareCode = share_code || urlInfo.password;
@@ -560,7 +594,7 @@ async function startServer() {
       .run(share_url, finalShareCode, 'link_replaced', req.params.id);
     
     // Trigger execution immediately
-    executeTask(Number(req.params.id), false, 'link_replaced');
+    executeTask(taskId, false, 'link_replaced');
     
     res.json({ success: true });
   });
