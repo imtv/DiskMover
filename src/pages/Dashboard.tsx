@@ -36,16 +36,7 @@ export default function Dashboard() {
   const [isReplaceModalOpen, setIsReplaceModalOpen] = useState(false);
   const [replaceShareUrl, setReplaceShareUrl] = useState('');
   const [replaceShareCode, setReplaceShareCode] = useState('');
-  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
 
-  useEffect(() => {
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-    localStorage.setItem('theme', theme);
-  }, [theme]);
 
   useEffect(() => {
     fetchTasks();
@@ -173,20 +164,13 @@ export default function Dashboard() {
   };
 
   return (
-    <div className={`space-y-8 bg-zinc-100 dark:bg-zinc-950 min-h-screen p-8`}>
+    <div className="space-y-8 bg-zinc-950 min-h-screen p-8 dark">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">115网盘</h1>
           <p className="text-zinc-600 dark:text-zinc-400">提交 115 分享链接，系统将自动帮您转存并重命名</p>
         </div>
         <div className="flex items-center gap-3">
-          <button
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors text-sm font-medium"
-            >
-              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-              {theme === 'dark' ? '白天' : '黑暗'}
-            </button>
             {isAuthenticated && (
               <a href="/admin" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 transition-colors text-sm font-medium">进入后台</a>
             )}
