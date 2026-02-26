@@ -187,11 +187,11 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="space-y-6 bg-zinc-950 min-h-screen px-[5px] py-[10px] sm:p-8 dark">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="space-y-4 bg-zinc-950 min-h-screen px-[5px] py-[10px] sm:p-8 dark">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4 px-1 sm:px-0">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">115网盘</h1>
-          <p className="text-sm sm:text-base text-zinc-600 dark:text-zinc-400">提交 115 分享链接，系统将自动帮您转存并整理</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-900 dark:text-white leading-tight">115网盘</h1>
+          <p className="text-xs sm:text-base text-zinc-600 dark:text-zinc-400">提交 115 分享链接，系统将自动帮您转存并整理</p>
         </div>
         <div className="flex items-center gap-3">
 
