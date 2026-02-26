@@ -600,6 +600,19 @@ async function startServer() {
     res.json({ success: true });
   });
 
+  app.patch('/api/tasks/:id/resource-url', (req, res) => {
+    const { resource_url } = req.body;
+    const taskId = Number(req.params.id);
+    if (!taskId) return res.status(400).json({ error: 'Invalid task ID' });
+
+    try {
+      db.prepare('UPDATE tasks SET resource_url = ? WHERE id = ?').run(resource_url, taskId);
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.post('/api/tasks/:id/run', (req, res) => {
     const taskId = parseInt(req.params.id);
     executeTask(taskId, false);
