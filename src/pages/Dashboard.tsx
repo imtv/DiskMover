@@ -116,10 +116,6 @@ export default function Dashboard() {
     }
   };
 
-  const handleRunTask = async (id: number) => {
-    await fetch(`/api/tasks/${id}/run`, { method: 'POST' });
-    fetchTasks();
-  };
 
   const handleViewLogs = async (id: number) => {
     setCurrentTaskId(id);
@@ -179,7 +175,10 @@ export default function Dashboard() {
   return (
     <div className={`space-y-8 bg-zinc-100 dark:bg-zinc-950 min-h-screen p-8`}>
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">115网盘</h1>
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">115网盘</h1>
+          <p className="text-zinc-600 dark:text-zinc-400">提交 115 分享链接，系统将自动帮您转存并重命名</p>
+        </div>
         <div className="flex items-center gap-3">
           <button
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
@@ -192,9 +191,6 @@ export default function Dashboard() {
               <a href="/admin" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 transition-colors text-sm font-medium">进入后台</a>
             )}
         </div>
-      </div>
-      <div>
-        <p className="text-zinc-600 dark:text-zinc-400">提交 115 分享链接，系统将自动帮您转存并重命名</p>
       </div>
 
       {/* Create Task Form */}
