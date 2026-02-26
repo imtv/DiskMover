@@ -37,7 +37,7 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-zinc-950 text-zinc-50 relative">
-      <Link to="/" className="absolute top-8 left-8 flex items-center gap-2 text-zinc-400 hover:text-white transition-colors">
+      <Link to="/" className="absolute top-4 left-4 sm:top-8 sm:left-8 flex items-center gap-2 text-zinc-400 hover:text-white transition-colors">
         <ArrowLeft className="w-5 h-5" />
         返回首页
       </Link>

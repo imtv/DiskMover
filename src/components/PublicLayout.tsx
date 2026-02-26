@@ -43,8 +43,7 @@ export default function PublicLayout() {
               className="text-xs sm:text-sm font-medium text-zinc-300 hover:text-white transition-colors flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 px-2.5 sm:px-3 py-1.5 rounded-lg disabled:opacity-50 whitespace-nowrap"
             >
               <RefreshCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isScanning ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">扫描百度网盘</span>
-              <span className="sm:hidden">扫描</span>
+              <span>扫描百度网盘</span>
             </button>
             {isAuthenticated ? (
               <Link to="/admin" className="text-xs sm:text-sm font-medium text-zinc-400 hover:text-white transition-colors whitespace-nowrap">
@@ -53,14 +52,13 @@ export default function PublicLayout() {
             ) : (
               <Link to="/login" className="text-xs sm:text-sm font-medium text-zinc-500 hover:text-zinc-300 transition-colors flex items-center gap-1 sm:gap-1.5 whitespace-nowrap">
                 <Lock className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                <span className="hidden sm:inline">管理员登录</span>
-                <span className="sm:hidden">登录</span>
+                <span>管理员登录</span>
               </Link>
             )}
           </nav>
         </div>
       </header>
-      <main className="flex-1 w-full max-w-5xl mx-auto p-4 sm:p-6">
+      <main className="flex-1 w-full max-w-5xl mx-auto sm:p-6">
         <Outlet />
       </main>
     </div>
