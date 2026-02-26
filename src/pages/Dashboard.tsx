@@ -37,6 +37,9 @@ export default function Dashboard() {
   const [replaceShareUrl, setReplaceShareUrl] = useState('');
   const [replaceShareCode, setReplaceShareCode] = useState('');
 
+  const [isResourceModalOpen, setIsResourceModalOpen] = useState(false);
+  const [newResourceUrl, setNewResourceUrl] = useState('');
+
 
   useEffect(() => {
     fetchTasks();
@@ -137,6 +140,26 @@ export default function Dashboard() {
     fetchTasks();
     // Auto open logs
     handleViewLogs(currentTaskId);
+  };
+
+  const handleOpenResourceModal = (task: Task) => {
+    setCurrentTaskId(task.id);
+    setNewResourceUrl(task.resource_url || '');
+    setIsResourceModalOpen(true);
+  };
+
+  const handleUpdateResourceUrl = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentTaskId) return;
+
+    await fetch(`/api/tasks/${currentTaskId}/resource-url`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ resource_url: newResourceUrl }),
+    });
+
+    setIsResourceModalOpen(false);
+    fetchTasks();
   };
 
   const handleClearAllTasks = async () => {
@@ -380,6 +403,15 @@ export default function Dashboard() {
                     >
                       <LinkIcon className="w-5 h-5" />
                     </button>
+                    {!task.resource_url && isAuthenticated && (
+                      <button
+                        onClick={() => handleOpenResourceModal(task)}
+                        className="p-2 text-zinc-400 hover:text-green-400 hover:bg-green-400/10 rounded-lg transition-colors"
+                        title="补充资源链接"
+                      >
+                        <Film className="w-5 h-5" />
+                      </button>
+                    )}
                     {isAuthenticated && (
                       <button
                         onClick={() => handleDeleteTask(task.id)}
@@ -476,6 +508,51 @@ export default function Dashboard() {
                   className="px-6 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-medium transition-colors shadow-lg shadow-amber-500/20"
                 >
                   更新并执行
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add/Edit Resource Link Modal */}
+      {isResourceModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+            <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between shrink-0">
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                <Film className="w-5 h-5 text-green-400" />
+                补充资源链接
+              </h3>
+              <button onClick={() => setIsResourceModalOpen(false)} className="text-zinc-400 hover:text-white transition-colors">
+                <XCircle className="w-6 h-6" />
+              </button>
+            </div>
+            <form onSubmit={handleUpdateResourceUrl} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-zinc-400 mb-1.5">资源链接</label>
+                <input
+                  type="url"
+                  required
+                  value={newResourceUrl}
+                  onChange={(e) => setNewResourceUrl(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  placeholder="例如hdhive、豆瓣、IMDB 链接"
+                />
+              </div>
+              <div className="pt-2 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsResourceModalOpen(false)}
+                  className="px-4 py-2 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+                >
+                  取消
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2 rounded-xl bg-green-600 hover:bg-green-500 text-white font-medium transition-colors shadow-lg shadow-green-500/20"
+                >
+                  保存
                 </button>
               </div>
             </form>
