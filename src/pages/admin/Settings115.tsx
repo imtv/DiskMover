@@ -120,10 +120,10 @@ export default function Settings115() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="max-w-4xl mx-auto space-y-6 sm:space-y-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-white mb-2">115 网盘配置</h1>
-        <p className="text-zinc-400">配置 115 Cookie 及分类保存路径</p>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white mb-2">115 网盘配置</h1>
+        <p className="text-sm sm:text-base text-zinc-400">配置 115 Cookie 及分类保存路径</p>
       </div>
 
       {message.text && (
@@ -132,10 +132,10 @@ export default function Settings115() {
         </div>
       )}
 
-      <form onSubmit={handleSave} className="space-y-6">
+      <form onSubmit={handleSave} className="space-y-4 sm:space-y-6">
         {/* 115 Cookie */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl">
-          <div className="flex items-center gap-3 mb-6">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 sm:p-6 shadow-xl">
+          <div className="flex items-center gap-3 mb-4 sm:mb-6">
             <div className="p-2 bg-indigo-500/10 rounded-lg">
               <Key className="w-5 h-5 text-indigo-400" />
             </div>
@@ -158,8 +158,8 @@ export default function Settings115() {
         </div>
 
         {/* Categories */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl">
-          <div className="flex items-center gap-3 mb-6">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 sm:p-6 shadow-xl">
+          <div className="flex items-center gap-3 mb-4 sm:mb-6">
             <div className="p-2 bg-emerald-500/10 rounded-lg">
               <FolderTree className="w-5 h-5 text-emerald-400" />
             </div>
@@ -211,11 +211,11 @@ export default function Settings115() {
           </div>
         </div>
 
-        <div className="flex justify-end">
+        <div className="flex justify-center sm:justify-end">
           <button
             type="submit"
             disabled={isSaving}
-            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Save className="w-5 h-5" />
             {isSaving ? '保存中...' : '保存设置'}
