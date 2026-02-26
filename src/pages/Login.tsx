@@ -36,13 +36,13 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-950 text-zinc-50 relative">
+    <div className="min-h-screen flex items-center justify-center bg-zinc-950 text-zinc-50 relative px-4">
       <Link to="/" className="absolute top-4 left-4 sm:top-8 sm:left-8 flex items-center gap-2 text-zinc-400 hover:text-white transition-colors">
         <ArrowLeft className="w-5 h-5" />
         返回首页
       </Link>
       
-      <div className="w-full max-w-md p-8 bg-zinc-900 rounded-2xl border border-zinc-800 shadow-2xl">
+      <div className="w-full max-w-md p-6 sm:p-8 bg-zinc-900 rounded-2xl border border-zinc-800 shadow-2xl">
         <div className="flex justify-center mb-8">
           <div className="p-4 bg-indigo-500/10 rounded-full">
             <Cloud className="w-12 h-12 text-indigo-500" />
