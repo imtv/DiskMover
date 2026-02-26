@@ -177,9 +177,23 @@ export default function Dashboard() {
   };
 
   return (
-    <div className={`space-y-8 dark:bg-zinc-950 bg-zinc-100 min-h-screen p-8 ${theme === 'dark' ? 'dark' : ''}`}>
+    <div className={`space-y-8 bg-zinc-100 dark:bg-zinc-950 min-h-screen p-8`}>
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">115网盘</h1>
+        <div className="flex items-center gap-3">
+          <button
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors text-sm font-medium"
+            >
+              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              {theme === 'dark' ? '白天' : '黑暗'}
+            </button>
+            {isAuthenticated && (
+              <a href="/admin" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 transition-colors text-sm font-medium">进入后台</a>
+            )}
+        </div>
+      </div>
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white mb-2">115网盘</h1>
         <p className="text-zinc-600 dark:text-zinc-400">提交 115 分享链接，系统将自动帮您转存并重命名</p>
       </div>
 
@@ -284,20 +298,6 @@ export default function Dashboard() {
         <div className="flex justify-between items-center">
           <h2 className="text-xl font-semibold text-zinc-900 dark:text-white">历史任务</h2>
           <div className="flex items-center gap-3">
-            <button
-                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-500/10 text-zinc-400 hover:bg-zinc-500/20 transition-colors text-sm font-medium"
-              >
-                {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-                {theme === 'dark' ? '白天' : '黑暗'}
-              </button>
-            <button
-                onClick={() => alert('此功能待开发')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors text-sm font-medium"
-              >
-                <ScanText className="w-4 h-4" />
-                扫描百度网盘
-              </button>
             {isAuthenticated && tasks.length > 0 && (
               <button
                 onClick={handleClearAllTasks}
@@ -318,7 +318,7 @@ export default function Dashboard() {
         ) : (
           <div className="grid grid-cols-1 gap-4">
             {tasks.map((task) => (
-              <div key={task.id} className={`bg-zinc-900 border rounded-2xl p-5 shadow-xl transition-colors group ${task.is_pinned ? 'border-amber-500/30 bg-amber-500/5' : 'border-zinc-800 hover:border-zinc-700'}`}>
+              <div className={`bg-white dark:bg-zinc-900 border rounded-2xl p-5 shadow-xl transition-colors group ${task.is_pinned ? 'border-amber-500/30 bg-amber-500/5' : 'border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700'}`}>
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                   <div className="flex items-start gap-4 min-w-0">
                     <div className={`p-3 rounded-xl shrink-0 ${task.is_pinned ? 'bg-amber-500/10 text-amber-400' : 'bg-zinc-800/50 text-indigo-400'}`}>
@@ -326,7 +326,7 @@ export default function Dashboard() {
                     </div>
                     <div className="min-w-0 space-y-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-semibold text-zinc-100 text-lg truncate">{task.name || '未命名'}</h3>
+                        <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 text-lg truncate">{task.name || '未命名'}</h3>
                         {task.resource_url && (
                           <a href={task.resource_url} target="_blank" rel="noopener noreferrer" title="查看资源链接">
                             <Film className="w-5 h-5 text-amber-400 hover:text-amber-300" />
