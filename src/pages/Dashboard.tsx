@@ -345,15 +345,7 @@ export default function Dashboard() {
                     >
                       <ScanText className="w-5 h-5" />
                     </button>
-                    {isAuthenticated && (
-                      <button
-                        onClick={() => handleRunTask(task.id)}
-                        className="p-2 text-zinc-400 hover:text-emerald-400 hover:bg-emerald-400/10 rounded-lg transition-colors"
-                        title="重新执行"
-                      >
-                        <Play className="w-5 h-5" />
-                      </button>
-                    )}
+
                     <button
                       onClick={() => handleViewLogs(task.id)}
                       className="p-2 text-zinc-400 hover:text-indigo-400 hover:bg-indigo-400/10 rounded-lg transition-colors"
