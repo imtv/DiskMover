@@ -317,7 +317,7 @@ async function executeTask(taskId: number, isCron = false, successStatus = 'comp
              const scanPath = applyPathMapping(fullPath115, settings);
              log(`开始扫描 OpenList 路径: ${scanPath}`);
 
-             const olRes = await refreshOpenListPath(scanPath); 
+             const olRes = await refreshOpenListPath(scanPath, taskId); 
              if (olRes.success) {
                 log(`OpenList 扫描请求成功`);
              } else {
@@ -345,7 +345,7 @@ async function executeTask(taskId: number, isCron = false, successStatus = 'comp
 }
 
 // Helper for OpenList Path Scan
-async function refreshOpenListPath(path: string) {
+async function refreshOpenListPath(path: string, taskId?: number) {
     const settings = getSettings();
     if (!settings.ol_url || !settings.ol_token) {
         return { success: false, msg: "OpenList 未配置" };
@@ -371,8 +371,14 @@ async function refreshOpenListPath(path: string) {
         // Calculate parent path for refresh
         // e.g. /Videos-115/影集/除恶 -> /Videos-115/影集
         const parentPath = path.substring(0, path.lastIndexOf('/')) || '/';
-        
-        console.log(`[OpenList] 正在强制刷新父路径: ${parentPath}`);
+        const log = (msg: string) => {
+            if (taskId) {
+              db.prepare('INSERT INTO logs (task_id, message) VALUES (?, ?)').run(taskId, msg);
+            }
+            console.log(`[Task ${taskId || 'N/A'}] ${msg}`);
+        };
+
+        log(`[OpenList] 正在强制刷新父路径: ${parentPath}`);
         try {
             await axios.post(`${baseUrl}/api/fs/list`, {
                 path: parentPath,
@@ -381,9 +387,9 @@ async function refreshOpenListPath(path: string) {
                 per_page: 0,
                 refresh: true
             }, { headers, timeout: 10000 });
-            console.log(`[OpenList] 强制刷新请求成功`);
+            log(`[OpenList] 强制刷新请求成功`);
         } catch (e: any) {
-            console.log(`[OpenList] 强制刷新失败 (可能不影响后续扫描): ${e.message}`);
+            log(`[OpenList] 强制刷新失败 (可能不影响后续扫描): ${e.message}`);
             // Don't return error here, continue to scan
         }
 
@@ -391,7 +397,7 @@ async function refreshOpenListPath(path: string) {
         await new Promise(resolve => setTimeout(resolve, 3000));
 
         // 2. Scan Index
-        console.log(`[OpenList] 开始扫描路径: ${path}`);
+        log(`[OpenList] 开始扫描路径: ${path}`);
         const res = await axios.post(`${baseUrl}/api/admin/scan/start`, {
             path: path,
             limit: 0
@@ -545,8 +551,13 @@ async function startServer() {
     const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(req.params.id);
     if (!task) return res.status(404).json({ error: 'Task not found' });
 
+    const urlInfo = extractShareCode(share_url);
+    const finalShareCode = share_code || urlInfo.password;
+
+    db.prepare('INSERT INTO logs (task_id, message) VALUES (?, ?)').run(req.params.id, '[系统] 更换链接并重新执行');
+
     db.prepare('UPDATE tasks SET share_url = ?, share_code = ?, status = ?, last_share_hash = NULL WHERE id = ?')
-      .run(share_url, share_code || '', 'link_replaced', req.params.id);
+      .run(share_url, finalShareCode, 'link_replaced', req.params.id);
     
     // Trigger execution immediately
     executeTask(Number(req.params.id), false, 'link_replaced');
@@ -594,7 +605,7 @@ async function startServer() {
     let scanPath = applyPathMapping(fullPath115, settings);
 
     try {
-        const result = await refreshOpenListPath(scanPath);
+        const result = await refreshOpenListPath(scanPath, taskId);
         const time = new Date().toISOString();
         if (result.success) {
             db.prepare('INSERT INTO logs (task_id, message) VALUES (?, ?)').run(taskId, `✅ [${time}] 手动扫描: 请求已发送 (${scanPath})`);
