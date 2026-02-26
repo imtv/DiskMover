@@ -367,10 +367,15 @@ async function refreshOpenListPath(path: string) {
         // 1. Force Refresh (to clear cache and detect new files)
         // API: /api/fs/list
         // Body: { path: "/path/to/dir", password: "", page: 1, per_page: 0, refresh: true }
-        console.log(`[OpenList] 正在强制刷新路径: ${path}`);
+        
+        // Calculate parent path for refresh
+        // e.g. /Videos-115/影集/除恶 -> /Videos-115/影集
+        const parentPath = path.substring(0, path.lastIndexOf('/')) || '/';
+        
+        console.log(`[OpenList] 正在强制刷新父路径: ${parentPath}`);
         try {
             await axios.post(`${baseUrl}/api/fs/list`, {
-                path: path,
+                path: parentPath,
                 password: "",
                 page: 1,
                 per_page: 0,

@@ -118,8 +118,8 @@ export default function Dashboard() {
 
   const handleOpenReplaceModal = (task: Task) => {
     setCurrentTaskId(task.id);
-    setReplaceShareUrl(task.share_url);
-    setReplaceShareCode(task.share_code || '');
+    setReplaceShareUrl('');
+    setReplaceShareCode('');
     setIsReplaceModalOpen(true);
   };
 
