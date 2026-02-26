@@ -187,7 +187,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="space-y-6 bg-zinc-950 min-h-screen p-4 sm:p-8 dark">
+    <div className="space-y-6 bg-zinc-950 min-h-screen px-[5px] py-[10px] sm:p-8 dark">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">115网盘</h1>
