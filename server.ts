@@ -56,7 +56,8 @@ db.exec(`
     resource_url TEXT,
     latest_success_time TEXT,
     latest_link_replace_time TEXT,
-    latest_scan_time TEXT
+    latest_scan_time TEXT,
+    execution_history TEXT DEFAULT '[]'
   );
   CREATE TABLE IF NOT EXISTS logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -80,6 +81,9 @@ try {
 } catch (e) {}
 try {
   db.prepare('ALTER TABLE tasks ADD COLUMN latest_scan_time TEXT').run();
+} catch (e) {}
+try {
+  db.prepare('ALTER TABLE tasks ADD COLUMN execution_history TEXT').run();
 } catch (e) {}
 
 // Insert default admin if no users exist
@@ -195,6 +199,33 @@ async function executeTask(taskId: number, isCron = false, successStatus = 'comp
     return; 
   }
 
+  // Update history to running
+  let history = JSON.parse(task.execution_history || '[]');
+  // Find the last pending/running item or create new if none (though usually created by API)
+  // Actually, for cron, we might need to add a new entry.
+  // For manual trigger (create/replace), the entry is already added.
+  // But wait, executeTask is called async.
+  // Let's just append a new 'running' entry if the last one is not running/pending?
+  // Or better, update the last entry if it matches the current action context?
+  // To simplify, let's assume the caller (API) added the entry.
+  // But for cron, we need to add it here.
+  if (isCron) {
+      history.push({ action: 'cron', time: getCSTNow(), status: 'running' });
+      db.prepare('UPDATE tasks SET execution_history = ? WHERE id = ?').run(JSON.stringify(history), taskId);
+  } else {
+      // For manual tasks, we might need to update the status of the last entry to 'running' if it was 'pending'
+      // Or just leave it.
+      // Actually, let's ensure the last entry is 'running'
+      if (history.length > 0) {
+          const last = history[history.length - 1];
+          if (last.status === 'pending') {
+              last.status = 'running';
+              last.time = getCSTNow(); // Update start time
+              db.prepare('UPDATE tasks SET execution_history = ? WHERE id = ?').run(JSON.stringify(history), taskId);
+          }
+      }
+  }
+
   updateStatus('running');
   log(`开始执行项目转存: ${task.name || '未命名'}`);
 
@@ -293,6 +324,39 @@ async function executeTask(taskId: number, isCron = false, successStatus = 'comp
 
     if (saveResult.success) {
         const nowTime = getCSTNow();
+        
+        // Count videos
+        let videoCount = 0;
+        if (finalTargetCid && finalTargetCid !== '0') {
+             // If we created a folder, count inside it.
+             // If we saved to root (single folder case), we need to find that folder.
+             let countCid = finalTargetCid;
+             if (!isMultiFile) {
+                 // Single folder saved to targetCid. We need to find it.
+                 // We already do this later for renaming. Let's move the finding logic up or just do it here.
+                 const recent = await service115.getRecentItems(cookie, targetCid, 20);
+                 if (recent.success && recent.items.length > 0) {
+                     const sharedItemName = shareInfo.list[0].n;
+                     const savedItem = recent.items.find((i: any) => i.name === sharedItemName);
+                     if (savedItem) countCid = savedItem.id;
+                 }
+             }
+             log(`正在统计视频数量 (CID: ${countCid})...`);
+             videoCount = await service115.getFolderVideoCount(cookie, countCid);
+             log(`统计完成: ${videoCount} 个视频`);
+        }
+
+        // Update history
+        const currentTask = db.prepare('SELECT execution_history FROM tasks WHERE id = ?').get(taskId) as any;
+        let history = JSON.parse(currentTask.execution_history || '[]');
+        if (history.length > 0) {
+            const last = history[history.length - 1];
+            last.status = 'completed';
+            last.time = nowTime; // Completion time
+            last.video_count = videoCount;
+            db.prepare('UPDATE tasks SET execution_history = ? WHERE id = ?').run(JSON.stringify(history), taskId);
+        }
+
         db.prepare("UPDATE tasks SET last_success_date = ?, latest_success_time = ? WHERE id = ?").run(todayStr, nowTime, taskId);
         
         // Add current URL to executed list
@@ -359,14 +423,50 @@ async function executeTask(taskId: number, isCron = false, successStatus = 'comp
 
     } else if (saveResult.status === 'exists') {
       log(`文件已存在(115自动去重)`);
+      
+      // Update history
+      const currentTask = db.prepare('SELECT execution_history FROM tasks WHERE id = ?').get(taskId) as any;
+      let history = JSON.parse(currentTask.execution_history || '[]');
+      if (history.length > 0) {
+          const last = history[history.length - 1];
+          last.status = 'completed';
+          last.time = getCSTNow();
+          last.details = '文件已存在';
+          db.prepare('UPDATE tasks SET execution_history = ? WHERE id = ?').run(JSON.stringify(history), taskId);
+      }
+
       updateStatus(isCron ? 'pending' : successStatus);
     } else {
       log(`转存失败: ${saveResult.msg}`);
+      
+      // Update history
+      const currentTask = db.prepare('SELECT execution_history FROM tasks WHERE id = ?').get(taskId) as any;
+      let history = JSON.parse(currentTask.execution_history || '[]');
+      if (history.length > 0) {
+          const last = history[history.length - 1];
+          last.status = 'error';
+          last.time = getCSTNow();
+          last.error = saveResult.msg;
+          db.prepare('UPDATE tasks SET execution_history = ? WHERE id = ?').run(JSON.stringify(history), taskId);
+      }
+
       updateStatus(isCron ? 'pending' : 'error');
     }
 
   } catch (e: any) {
     log(`执行出错: ${e.message}`);
+    
+    // Update history
+    const currentTask = db.prepare('SELECT execution_history FROM tasks WHERE id = ?').get(taskId) as any;
+    let history = JSON.parse(currentTask.execution_history || '[]');
+    if (history.length > 0) {
+        const last = history[history.length - 1];
+        last.status = 'error';
+        last.time = getCSTNow();
+        last.error = e.message;
+        db.prepare('UPDATE tasks SET execution_history = ? WHERE id = ?').run(JSON.stringify(history), taskId);
+    }
+
     updateStatus(isCron ? 'pending' : 'error');
   }
 }
@@ -561,8 +661,9 @@ async function startServer() {
     // We store the password in share_code if it was provided, else extract it
     const receiveCode = share_code || urlInfo.password;
 
-    const stmt = db.prepare('INSERT INTO tasks (name, share_url, share_code, category, cron_expr, resource_url, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
-    const info = stmt.run(name, share_url, receiveCode, category, cron_expr, resource_url, getCSTNow(), getCSTNow());
+    const stmt = db.prepare('INSERT INTO tasks (name, share_url, share_code, category, cron_expr, resource_url, created_at, updated_at, execution_history) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    const initialHistory = JSON.stringify([{ action: 'create', time: getCSTNow(), status: 'pending' }]);
+    const info = stmt.run(name, share_url, receiveCode, category, cron_expr, resource_url, getCSTNow(), getCSTNow(), initialHistory);
     const taskId = info.lastInsertRowid as number;
     
     const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId);
@@ -608,8 +709,12 @@ async function startServer() {
 
     db.prepare('INSERT INTO logs (task_id, message, created_at) VALUES (?, ?, ?)').run(req.params.id, '[系统] 更换链接并重新执行', getCSTNow());
 
-    db.prepare('UPDATE tasks SET share_url = ?, share_code = ?, status = ?, last_share_hash = NULL, updated_at = ?, latest_link_replace_time = ? WHERE id = ?')
-      .run(share_url, finalShareCode, 'link_replaced', getCSTNow(), getCSTNow(), req.params.id);
+    const currentTask = db.prepare('SELECT execution_history FROM tasks WHERE id = ?').get(taskId) as any;
+    let history = JSON.parse(currentTask.execution_history || '[]');
+    history.push({ action: 'replace_link', time: getCSTNow(), status: 'pending' });
+
+    db.prepare('UPDATE tasks SET share_url = ?, share_code = ?, status = ?, last_share_hash = NULL, updated_at = ?, latest_link_replace_time = ?, execution_history = ? WHERE id = ?')
+      .run(share_url, finalShareCode, 'link_replaced', getCSTNow(), getCSTNow(), JSON.stringify(history), req.params.id);
     
     // Trigger execution immediately
     executeTask(taskId, false, 'link_replaced');
@@ -670,8 +775,25 @@ async function startServer() {
     let scanPath = applyPathMapping(fullPath115, settings);
 
     try {
+        // Add scan history
+        const currentTask = db.prepare('SELECT execution_history FROM tasks WHERE id = ?').get(taskId) as any;
+        let history = JSON.parse(currentTask.execution_history || '[]');
+        history.push({ action: 'scan', time: getCSTNow(), status: 'running' });
+        db.prepare('UPDATE tasks SET execution_history = ? WHERE id = ?').run(JSON.stringify(history), taskId);
+
         const result = await refreshOpenListPath(scanPath, taskId);
         const time = getCSTNow();
+        
+        // Update history status
+        history = JSON.parse((db.prepare('SELECT execution_history FROM tasks WHERE id = ?').get(taskId) as any).execution_history || '[]');
+        if (history.length > 0) {
+            const last = history[history.length - 1];
+            last.status = result.success ? 'completed' : 'error';
+            last.time = time;
+            if (!result.success) last.error = result.msg;
+            db.prepare('UPDATE tasks SET execution_history = ? WHERE id = ?').run(JSON.stringify(history), taskId);
+        }
+
         if (result.success) {
             db.prepare('INSERT INTO logs (task_id, message, created_at) VALUES (?, ?, ?)').run(taskId, `✅ [${time}] 手动扫描: 请求已发送 (${scanPath})`, time);
             db.prepare('UPDATE tasks SET status = ?, updated_at = ?, latest_scan_time = ? WHERE id = ?').run('scanned', time, time, taskId);
@@ -681,6 +803,18 @@ async function startServer() {
         res.json(result);
     } catch (e: any) {
         const time = getCSTNow();
+        
+        // Update history status to error
+        const currentTask = db.prepare('SELECT execution_history FROM tasks WHERE id = ?').get(taskId) as any;
+        let history = JSON.parse(currentTask.execution_history || '[]');
+        if (history.length > 0) {
+            const last = history[history.length - 1];
+            last.status = 'error';
+            last.time = time;
+            last.error = e.message;
+            db.prepare('UPDATE tasks SET execution_history = ? WHERE id = ?').run(JSON.stringify(history), taskId);
+        }
+
         db.prepare('INSERT INTO logs (task_id, message, created_at) VALUES (?, ?, ?)').run(taskId, `❌ [${time}] 手动扫描: 错误`, time);
         res.status(500).json({ success: false, msg: e.message });
     }

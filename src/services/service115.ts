@@ -223,6 +223,44 @@ class Service115 {
             return { success: false, path: [] };
         }
     }
+    async getFolderVideoCount(cookie: string, cid: string): Promise<number> {
+        let count = 0;
+        try {
+            const processFolder = async (currentCid: string) => {
+                let offset = 0;
+                const limit = 1000;
+                while (true) {
+                    const res = await axios.get("https://webapi.115.com/files", {
+                        headers: this._getHeaders(cookie),
+                        params: { aid: 1, cid: currentCid, o: "user_ptime", asc: 0, offset: offset, show_dir: 1, limit: limit, format: "json" }
+                    });
+                    
+                    if (!res.data.state || !res.data.data) break;
+                    
+                    const items = res.data.data;
+                    for (const item of items) {
+                        if (item.fid) {
+                            const ext = (item.n.split('.').pop() || '').toLowerCase();
+                            if (['mp4', 'mkv', 'avi', 'mov', 'rmvb', 'flv', 'wmv', 'm4v', 'ts', 'iso'].includes(ext)) {
+                                count++;
+                            }
+                        } else if (item.cid) {
+                            await processFolder(item.cid);
+                        }
+                    }
+                    
+                    if (items.length < limit) break;
+                    offset += limit;
+                }
+            };
+
+            await processFolder(cid);
+            return count;
+        } catch (e) {
+            console.error("Error counting videos:", e);
+            return 0;
+        }
+    }
 }
 
 export default new Service115();
