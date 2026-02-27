@@ -167,7 +167,7 @@ export default function Dashboard() {
   };
 
   const handleClearAllTasks = async () => {
-    if (!confirm('⚠️ 警告：确定要清空所有任务吗？\n此操作将删除所有任务记录并停止相关定时器，且不可恢复！')) return;
+    if (!confirm('⚠️ 警告：确定要清空所有非置顶任务吗？\n此操作将删除所有未置顶的任务记录并停止相关定时器，且不可恢复！')) return;
     await fetch('/api/tasks', { method: 'DELETE' });
     fetchTasks();
   };
@@ -191,7 +191,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="space-y-4 bg-zinc-950 min-h-screen px-4 py-3 sm:p-8 dark">
+    <div className="space-y-4 bg-zinc-950 min-h-screen px-4 pt-6 pb-4 sm:px-8 sm:pt-4 sm:pb-8 dark">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4 sm:px-0">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white leading-tight">115网盘</h1>

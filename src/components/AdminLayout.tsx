@@ -15,12 +15,17 @@ export default function AdminLayout() {
             <Cloud className="w-8 h-8 text-indigo-500" />
             <h1 className="text-xl font-bold tracking-tight">管理后台</h1>
           </div>
-          <button 
-            onClick={logout}
-            className="md:hidden p-2 text-zinc-400 hover:text-red-400 transition-colors"
-          >
-            <LogOut className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2 md:hidden">
+            <Link to="/" className="p-2 text-zinc-400 hover:text-zinc-100 transition-colors">
+              <ArrowLeft className="w-5 h-5" />
+            </Link>
+            <button 
+              onClick={logout}
+              className="p-2 text-zinc-400 hover:text-red-400 transition-colors"
+            >
+              <LogOut className="w-5 h-5" />
+            </button>
+          </div>
         </div>
         
         <nav className="flex md:flex-col overflow-x-auto md:overflow-x-visible px-2 md:px-4 pb-2 md:pb-0 space-x-2 md:space-x-0 md:space-y-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
@@ -44,7 +49,8 @@ export default function AdminLayout() {
             }`}
           >
             <Cloud className="w-4 h-4 md:w-5 md:h-5" />
-            <span className="font-medium text-sm md:text-base">115网盘配置</span>
+            <span className="font-medium text-sm md:text-base md:hidden">115网盘</span>
+            <span className="font-medium text-sm md:text-base hidden md:inline">115网盘配置</span>
           </Link>
           <Link
             to="/admin/openlist"
@@ -55,12 +61,13 @@ export default function AdminLayout() {
             }`}
           >
             <Settings className="w-4 h-4 md:w-5 md:h-5" />
-            <span className="font-medium text-sm md:text-base">OpenList配置</span>
+            <span className="font-medium text-sm md:text-base md:hidden">OpenList</span>
+            <span className="font-medium text-sm md:text-base hidden md:inline">OpenList配置</span>
           </Link>
           
           <Link
             to="/"
-            className="flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2 md:py-3 rounded-xl transition-colors text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 whitespace-nowrap"
+            className="hidden md:flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2 md:py-3 rounded-xl transition-colors text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 whitespace-nowrap"
           >
             <ArrowLeft className="w-4 h-4 md:w-5 md:h-5" />
             <span className="font-medium text-sm md:text-base">返回首页</span>

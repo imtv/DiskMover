@@ -848,13 +848,29 @@ async function startServer() {
   });
 
   app.delete('/api/tasks', (req, res) => {
-    Object.keys(cronJobs).forEach(id => {
-        if (cronJobs[parseInt(id)]) cronJobs[parseInt(id)].stop();
-    });
-    for (const key in cronJobs) delete cronJobs[key];
-    db.prepare('DELETE FROM tasks').run();
-    db.prepare('DELETE FROM logs').run();
-    res.json({ success: true, msg: "所有任务已清空" });
+    // Get non-pinned tasks
+    const tasksToDelete = db.prepare('SELECT id FROM tasks WHERE is_pinned = 0').all() as { id: number }[];
+    const ids = tasksToDelete.map(t => t.id);
+
+    if (ids.length > 0) {
+        // Stop cron jobs for these tasks
+        ids.forEach(id => {
+            if (cronJobs[id]) {
+                cronJobs[id].stop();
+                delete cronJobs[id];
+            }
+        });
+
+        const placeholders = ids.map(() => '?').join(',');
+        
+        // Delete logs for these tasks
+        db.prepare(`DELETE FROM logs WHERE task_id IN (${placeholders})`).run(...ids);
+        
+        // Delete tasks
+        db.prepare(`DELETE FROM tasks WHERE id IN (${placeholders})`).run(...ids);
+    }
+
+    res.json({ success: true, msg: `已清理 ${ids.length} 个非置顶任务` });
   });
 
   // Vite middleware for development
