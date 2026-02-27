@@ -53,7 +53,10 @@ db.exec(`
     created_at DATETIME,
     updated_at DATETIME,
     is_pinned INTEGER DEFAULT 0,
-    resource_url TEXT
+    resource_url TEXT,
+    latest_success_time TEXT,
+    latest_link_replace_time TEXT,
+    latest_scan_time TEXT
   );
   CREATE TABLE IF NOT EXISTS logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -66,9 +69,18 @@ db.exec(`
 // Migration: Add resource_url column if not exists
 try {
   db.prepare('ALTER TABLE tasks ADD COLUMN resource_url TEXT').run();
-} catch (e) {
-  // Column likely already exists
-}
+} catch (e) {}
+
+// Migration: Add timestamp columns if not exist
+try {
+  db.prepare('ALTER TABLE tasks ADD COLUMN latest_success_time TEXT').run();
+} catch (e) {}
+try {
+  db.prepare('ALTER TABLE tasks ADD COLUMN latest_link_replace_time TEXT').run();
+} catch (e) {}
+try {
+  db.prepare('ALTER TABLE tasks ADD COLUMN latest_scan_time TEXT').run();
+} catch (e) {}
 
 // Insert default admin if no users exist
 const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
@@ -280,7 +292,8 @@ async function executeTask(taskId: number, isCron = false, successStatus = 'comp
     const saveResult = await service115.saveFiles(cookie, finalTargetCid, extractShareCode(task.share_url).code, task.share_code, fileIds);
 
     if (saveResult.success) {
-        db.prepare("UPDATE tasks SET last_success_date = ? WHERE id = ?").run(todayStr, taskId);
+        const nowTime = getCSTNow();
+        db.prepare("UPDATE tasks SET last_success_date = ?, latest_success_time = ? WHERE id = ?").run(todayStr, nowTime, taskId);
         
         // Add current URL to executed list
         const currentUrls = JSON.parse(task.executed_share_urls || '[]');
@@ -595,8 +608,8 @@ async function startServer() {
 
     db.prepare('INSERT INTO logs (task_id, message, created_at) VALUES (?, ?, ?)').run(req.params.id, '[系统] 更换链接并重新执行', getCSTNow());
 
-    db.prepare('UPDATE tasks SET share_url = ?, share_code = ?, status = ?, last_share_hash = NULL, updated_at = ? WHERE id = ?')
-      .run(share_url, finalShareCode, 'link_replaced', getCSTNow(), req.params.id);
+    db.prepare('UPDATE tasks SET share_url = ?, share_code = ?, status = ?, last_share_hash = NULL, updated_at = ?, latest_link_replace_time = ? WHERE id = ?')
+      .run(share_url, finalShareCode, 'link_replaced', getCSTNow(), getCSTNow(), req.params.id);
     
     // Trigger execution immediately
     executeTask(taskId, false, 'link_replaced');
@@ -661,7 +674,7 @@ async function startServer() {
         const time = getCSTNow();
         if (result.success) {
             db.prepare('INSERT INTO logs (task_id, message, created_at) VALUES (?, ?, ?)').run(taskId, `✅ [${time}] 手动扫描: 请求已发送 (${scanPath})`, time);
-            db.prepare('UPDATE tasks SET status = ?, updated_at = ? WHERE id = ?').run('scanned', time, taskId);
+            db.prepare('UPDATE tasks SET status = ?, updated_at = ?, latest_scan_time = ? WHERE id = ?').run('scanned', time, time, taskId);
         } else {
             db.prepare('INSERT INTO logs (task_id, message, created_at) VALUES (?, ?, ?)').run(taskId, `❌ [${time}] 手动扫描: 失败 (${result.msg})`, time);
         }
