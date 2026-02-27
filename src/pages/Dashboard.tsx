@@ -419,31 +419,27 @@ export default function Dashboard() {
                             }
 
                             return (
-                              <div key={idx} className="flex items-start gap-3 text-sm group">
-                                <div className={`p-1.5 rounded-full ${iconBg} shrink-0 mt-0.5 transition-colors group-hover:bg-opacity-80`}>
+                              <div key={idx} className="flex items-center gap-3 text-sm group">
+                                <div className={`p-1.5 rounded-full ${iconBg} shrink-0 transition-colors group-hover:bg-opacity-80`}>
                                   <ActionIcon className={`w-4 h-4 ${iconColor} ${animate ? 'animate-spin' : ''}`} />
                                 </div>
-                                <div className="flex flex-col min-w-0 flex-1 gap-1">
-                                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                                        <span className="font-medium text-zinc-200">{actionText}</span>
-                                        <span className="text-xs text-zinc-500 font-mono pt-0.5">{item.time}</span>
-                                     </div>
-                                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-                                         <span className={`font-medium ${statusColor}`}>
-                                            {statusText}
+                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0 flex-1">
+                                     <span className="font-medium text-zinc-200">{actionText}</span>
+                                     <span className="text-zinc-500 font-mono">{item.time}</span>
+                                     <span className={`font-medium ${statusColor}`}>
+                                        {statusText}
+                                     </span>
+                                     {item.video_count !== undefined && item.video_count > 0 && (
+                                         <span className="text-zinc-400 flex items-center gap-1">
+                                             <Film className="w-3.5 h-3.5 text-zinc-500" />
+                                             转存{item.video_count}个视频
                                          </span>
-                                         {item.video_count !== undefined && item.video_count > 0 && (
-                                             <span className="text-zinc-400 flex items-center gap-1">
-                                                 <Film className="w-3 h-3 text-zinc-500" />
-                                                 转存{item.video_count}个视频
-                                             </span>
-                                         )}
-                                         {item.error && (
-                                             <span className="text-red-400/80 truncate max-w-[200px]" title={item.error}>
-                                                 {item.error}
-                                             </span>
-                                         )}
-                                     </div>
+                                     )}
+                                     {item.error && (
+                                         <span className="text-red-400/80 truncate max-w-[200px]" title={item.error}>
+                                             {item.error}
+                                         </span>
+                                     )}
                                 </div>
                               </div>
                             );
@@ -463,7 +459,7 @@ export default function Dashboard() {
                     </button>
                     <button
                       onClick={() => handleRefreshIndex(task.id)}
-                      className="p-2 text-zinc-400 hover:text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors"
+                      className="p-2 text-zinc-400 hover:text-purple-400 hover:bg-purple-400/10 rounded-lg transition-colors"
                       title="扫描目录"
                     >
                       <ScanText className="w-5 h-5" />
