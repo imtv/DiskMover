@@ -368,23 +368,18 @@ export default function Dashboard() {
                           return history.map((item: any, idx: number) => {
                             let ActionIcon = PlusCircle;
                             let iconColor = 'text-zinc-400';
-                            let actionText = '';
                             let animate = false;
 
                             if (item.action === 'create') {
-                                actionText = '创建任务';
                                 ActionIcon = PlusCircle;
                                 iconColor = 'text-blue-400';
                             } else if (item.action === 'replace_link') {
-                                actionText = '更换链接';
                                 ActionIcon = LinkIcon;
                                 iconColor = 'text-amber-400';
                             } else if (item.action === 'scan') {
-                                actionText = '手动扫描';
                                 ActionIcon = ScanText;
                                 iconColor = 'text-purple-400';
                             } else if (item.action === 'cron') {
-                                actionText = '定时任务';
                                 ActionIcon = Timer;
                                 iconColor = 'text-cyan-400';
                             }
@@ -412,19 +407,18 @@ export default function Dashboard() {
                             }
 
                             return (
-                              <div key={idx} className="flex items-center gap-2 text-sm group">
+                              <div key={idx} className="flex items-center gap-2 text-xs group">
                                 <div className={`shrink-0 transition-colors`}>
-                                  <ActionIcon className={`w-4 h-4 ${iconColor} ${animate ? 'animate-spin' : ''}`} />
+                                  <ActionIcon className={`w-3.5 h-3.5 ${iconColor} ${animate ? 'animate-spin' : ''}`} />
                                 </div>
                                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0 flex-1">
-                                     <span className="font-medium text-zinc-200">{actionText}</span>
                                      <span className="text-zinc-500 font-mono">{item.time}</span>
                                      <span className={`font-medium ${statusColor}`}>
                                         {statusText}
                                      </span>
                                      {item.video_count !== undefined && item.video_count > 0 && (
                                          <span className="text-zinc-400 flex items-center gap-1">
-                                             <Film className="w-3.5 h-3.5 text-zinc-500" />
+                                             <Film className="w-3 h-3 text-zinc-500" />
                                              转存{item.video_count}个视频
                                          </span>
                                      )}
