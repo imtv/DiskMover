@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Trash2, FileText, FolderOpen, CheckCircle2, Clock, XCircle, RefreshCw, Link as LinkIcon, Pin, ScanText, Logs, Sun, Moon, Film } from 'lucide-react';
+import { Play, Trash2, FileText, FolderOpen, CheckCircle2, Clock, XCircle, RefreshCw, Link as LinkIcon, Pin, ScanText, Logs, Sun, Moon, Film, PlusCircle, Timer, AlertCircle } from 'lucide-react';
 import { formatInTimeZone } from 'date-fns-tz';
 import { useAuth } from '../context/AuthContext';
 
@@ -346,113 +346,105 @@ export default function Dashboard() {
                       </a>
                       
                       {/* Status History List */}
-                      <div className="pt-2 space-y-2">
+                      <div className="pt-3 space-y-3 border-t border-zinc-800/30 mt-3">
                         {(() => {
                           const history = task.execution_history ? JSON.parse(task.execution_history) : [];
                           
                           // Fallback for old tasks without history
                           if (history.length === 0) {
                              return (
-                               <>
-                                 <div className="flex items-center gap-2 text-xs text-zinc-400">
-                                   <Clock className="w-3.5 h-3.5 text-zinc-500" />
-                                   <span className="font-mono text-zinc-500 w-36 shrink-0">{formatInTimeZone(new Date(task.created_at), 'Asia/Shanghai', 'yyyy-MM-dd HH:mm:ss')}</span>
-                                   <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border bg-zinc-500/10 text-zinc-400 border-zinc-500/20">
-                                     创建任务
-                                   </span>
+                               <div className="flex items-center gap-3 text-sm text-zinc-400">
+                                 <div className="p-1.5 rounded-full bg-zinc-800 text-zinc-400 shrink-0">
+                                   <Clock className="w-4 h-4" />
                                  </div>
-                                 {[
-                                   { time: task.latest_success_time, text: '已完成', icon: CheckCircle2, color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20', animate: false },
-                                   { time: task.latest_link_replace_time, text: '更换链接成功', icon: LinkIcon, color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/20', animate: false },
-                                   { time: task.latest_scan_time, text: '已扫描', icon: ScanText, color: 'text-blue-400', bg: 'bg-blue-500/10 border-blue-500/20', animate: false }
-                                 ]
-                                 .filter(item => item.time)
-                                 .sort((a, b) => new Date(a.time!).getTime() - new Date(b.time!).getTime())
-                                 .concat(
-                                   task.status === 'running' ? [{ time: '正在执行...', text: '执行中', icon: RefreshCw, color: 'text-indigo-400', bg: 'bg-indigo-500/10 border-indigo-500/20', animate: true }] :
-                                   task.status === 'pending' ? [{ time: '等待中...', text: '等待执行', icon: Clock, color: 'text-zinc-400', bg: 'bg-zinc-500/10 border-zinc-500/20', animate: false }] :
-                                   task.status === 'error' ? [{ time: '刚刚', text: '发生错误', icon: XCircle, color: 'text-red-400', bg: 'bg-red-500/10 border-red-500/20', animate: false }] :
-                                   []
-                                 )
-                                 .map((item, idx) => (
-                                   <div key={idx} className="flex items-center gap-2 text-xs text-zinc-400">
-                                     <div className="w-3.5 flex justify-center"><div className="w-0.5 h-full bg-zinc-800/50"></div></div>
-                                     <span className="font-mono text-zinc-500 w-36 shrink-0">{item.time}</span>
-                                     <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border ${item.bg} ${item.color}`}>
-                                       <item.icon className={`w-3 h-3 ${item.animate ? 'animate-spin' : ''}`} />
-                                       {item.text}
-                                     </span>
-                                   </div>
-                                 ))}
-                               </>
+                                 <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 min-w-0 flex-1">
+                                    <span className="font-medium text-zinc-300">创建任务</span>
+                                    <span className="text-xs text-zinc-500 font-mono">{formatInTimeZone(new Date(task.created_at), 'Asia/Shanghai', 'yyyy-MM-dd HH:mm:ss')}</span>
+                                 </div>
+                               </div>
                              );
                           }
 
                           return history.map((item: any, idx: number) => {
-                            let icon = Clock;
-                            let color = 'text-zinc-400';
-                            let bg = 'bg-zinc-500/10 border-zinc-500/20';
-                            let text = '';
+                            let ActionIcon = PlusCircle;
+                            let iconColor = 'text-zinc-400';
+                            let iconBg = 'bg-zinc-800';
+                            let actionText = '';
                             let animate = false;
 
                             if (item.action === 'create') {
-                                text = '创建于';
-                                icon = Clock;
+                                actionText = '创建任务';
+                                ActionIcon = PlusCircle;
+                                iconColor = 'text-blue-400';
+                                iconBg = 'bg-blue-500/10';
                             } else if (item.action === 'replace_link') {
-                                text = '更换链接';
-                                icon = LinkIcon;
-                                color = 'text-amber-400';
-                                bg = 'bg-amber-500/10 border-amber-500/20';
+                                actionText = '更换链接';
+                                ActionIcon = LinkIcon;
+                                iconColor = 'text-amber-400';
+                                iconBg = 'bg-amber-500/10';
                             } else if (item.action === 'scan') {
-                                text = '手动扫描';
-                                icon = ScanText;
-                                color = 'text-blue-400';
-                                bg = 'bg-blue-500/10 border-blue-500/20';
+                                actionText = '手动扫描';
+                                ActionIcon = ScanText;
+                                iconColor = 'text-purple-400';
+                                iconBg = 'bg-purple-500/10';
                             } else if (item.action === 'cron') {
-                                text = '定时任务';
-                                icon = RefreshCw;
+                                actionText = '定时任务';
+                                ActionIcon = Timer;
+                                iconColor = 'text-cyan-400';
+                                iconBg = 'bg-cyan-500/10';
                             }
 
                             let statusText = '';
                             let statusColor = '';
-                            let statusBg = '';
                             
                             if (item.status === 'running') {
                                 statusText = '执行中';
                                 statusColor = 'text-indigo-400';
-                                statusBg = 'bg-indigo-500/10 border-indigo-500/20';
                                 animate = true;
-                                icon = RefreshCw; // Override icon for running state if preferred, or keep action icon
+                                ActionIcon = RefreshCw; // Use spinner for running state if preferred, or keep action icon
+                                iconColor = 'text-indigo-400';
+                                iconBg = 'bg-indigo-500/10';
                             } else if (item.status === 'completed') {
                                 statusText = '已完成';
                                 statusColor = 'text-emerald-400';
-                                statusBg = 'bg-emerald-500/10 border-emerald-500/20';
                             } else if (item.status === 'error') {
                                 statusText = '失败';
                                 statusColor = 'text-red-400';
-                                statusBg = 'bg-red-500/10 border-red-500/20';
-                                icon = XCircle;
+                                ActionIcon = AlertCircle;
+                                iconColor = 'text-red-400';
+                                iconBg = 'bg-red-500/10';
                             } else {
                                 statusText = '等待中';
+                                statusColor = 'text-zinc-500';
                             }
 
                             return (
-                              <div key={idx} className="flex items-center gap-2 text-xs text-zinc-400">
-                                <icon className={`w-3.5 h-3.5 ${color} ${animate ? 'animate-spin' : ''}`} />
-                                <span className="font-mono text-zinc-500 w-36 shrink-0">{item.time}</span>
-                                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border ${statusBg} ${statusColor}`}>
-                                  {statusText}
-                                </span>
-                                {item.video_count !== undefined && item.video_count > 0 && (
-                                    <span className="text-zinc-500 ml-1">
-                                        转存{item.video_count}个视频
-                                    </span>
-                                )}
-                                {item.error && (
-                                    <span className="text-red-400/80 ml-1 truncate max-w-[150px]" title={item.error}>
-                                        {item.error}
-                                    </span>
-                                )}
+                              <div key={idx} className="flex items-start gap-3 text-sm group">
+                                <div className={`p-1.5 rounded-full ${iconBg} shrink-0 mt-0.5 transition-colors group-hover:bg-opacity-80`}>
+                                  <ActionIcon className={`w-4 h-4 ${iconColor} ${animate ? 'animate-spin' : ''}`} />
+                                </div>
+                                <div className="flex flex-col min-w-0 flex-1 gap-1">
+                                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                                        <span className="font-medium text-zinc-200">{actionText}</span>
+                                        <span className="text-xs text-zinc-500 font-mono pt-0.5">{item.time}</span>
+                                     </div>
+                                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                                         <span className={`font-medium ${statusColor}`}>
+                                            {statusText}
+                                         </span>
+                                         {item.video_count !== undefined && item.video_count > 0 && (
+                                             <span className="text-zinc-400 flex items-center gap-1">
+                                                 <Film className="w-3 h-3 text-zinc-500" />
+                                                 转存{item.video_count}个视频
+                                             </span>
+                                         )}
+                                         {item.error && (
+                                             <span className="text-red-400/80 truncate max-w-[200px]" title={item.error}>
+                                                 {item.error}
+                                             </span>
+                                         )}
+                                     </div>
+                                </div>
                               </div>
                             );
                           });
