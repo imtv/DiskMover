@@ -346,18 +346,18 @@ export default function Dashboard() {
                       </a>
                       
                       {/* Status History List */}
-                      <div className="pt-3 space-y-3 border-t border-zinc-800/30 mt-3">
+                      <div className="pt-2 space-y-2 border-t border-zinc-800/30 mt-2">
                         {(() => {
                           const history = task.execution_history ? JSON.parse(task.execution_history) : [];
                           
                           // Fallback for old tasks without history
                           if (history.length === 0) {
                              return (
-                               <div className="flex items-center gap-3 text-sm text-zinc-400">
-                                 <div className="p-1.5 rounded-full bg-zinc-800 text-zinc-400 shrink-0">
+                               <div className="flex items-center gap-2 text-sm text-zinc-400">
+                                 <div className="shrink-0 text-zinc-400">
                                    <Clock className="w-4 h-4" />
                                  </div>
-                                 <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 min-w-0 flex-1">
+                                 <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 min-w-0 flex-1">
                                     <span className="font-medium text-zinc-300">创建任务</span>
                                     <span className="text-xs text-zinc-500 font-mono">{formatInTimeZone(new Date(task.created_at), 'Asia/Shanghai', 'yyyy-MM-dd HH:mm:ss')}</span>
                                  </div>
@@ -368,7 +368,6 @@ export default function Dashboard() {
                           return history.map((item: any, idx: number) => {
                             let ActionIcon = PlusCircle;
                             let iconColor = 'text-zinc-400';
-                            let iconBg = 'bg-zinc-800';
                             let actionText = '';
                             let animate = false;
 
@@ -376,22 +375,18 @@ export default function Dashboard() {
                                 actionText = '创建任务';
                                 ActionIcon = PlusCircle;
                                 iconColor = 'text-blue-400';
-                                iconBg = 'bg-blue-500/10';
                             } else if (item.action === 'replace_link') {
                                 actionText = '更换链接';
                                 ActionIcon = LinkIcon;
                                 iconColor = 'text-amber-400';
-                                iconBg = 'bg-amber-500/10';
                             } else if (item.action === 'scan') {
                                 actionText = '手动扫描';
                                 ActionIcon = ScanText;
                                 iconColor = 'text-purple-400';
-                                iconBg = 'bg-purple-500/10';
                             } else if (item.action === 'cron') {
                                 actionText = '定时任务';
                                 ActionIcon = Timer;
                                 iconColor = 'text-cyan-400';
-                                iconBg = 'bg-cyan-500/10';
                             }
 
                             let statusText = '';
@@ -403,7 +398,6 @@ export default function Dashboard() {
                                 animate = true;
                                 ActionIcon = RefreshCw; // Use spinner for running state if preferred, or keep action icon
                                 iconColor = 'text-indigo-400';
-                                iconBg = 'bg-indigo-500/10';
                             } else if (item.status === 'completed') {
                                 statusText = '已完成';
                                 statusColor = 'text-emerald-400';
@@ -412,18 +406,17 @@ export default function Dashboard() {
                                 statusColor = 'text-red-400';
                                 ActionIcon = AlertCircle;
                                 iconColor = 'text-red-400';
-                                iconBg = 'bg-red-500/10';
                             } else {
                                 statusText = '等待中';
                                 statusColor = 'text-zinc-500';
                             }
 
                             return (
-                              <div key={idx} className="flex items-center gap-3 text-sm group">
-                                <div className={`p-1.5 rounded-full ${iconBg} shrink-0 transition-colors group-hover:bg-opacity-80`}>
+                              <div key={idx} className="flex items-center gap-2 text-sm group">
+                                <div className={`shrink-0 transition-colors`}>
                                   <ActionIcon className={`w-4 h-4 ${iconColor} ${animate ? 'animate-spin' : ''}`} />
                                 </div>
-                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0 flex-1">
+                                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0 flex-1">
                                      <span className="font-medium text-zinc-200">{actionText}</span>
                                      <span className="text-zinc-500 font-mono">{item.time}</span>
                                      <span className={`font-medium ${statusColor}`}>
