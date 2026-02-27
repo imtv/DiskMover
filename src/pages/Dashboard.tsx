@@ -191,7 +191,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="space-y-4 bg-zinc-950 min-h-screen px-4 pt-6 pb-4 sm:px-8 sm:pt-4 sm:pb-8 dark">
+    <div className="space-y-4 bg-zinc-950 min-h-screen px-4 pt-6 pb-4 sm:px-8 sm:pt-0 sm:pb-8 dark">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4 sm:px-0">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white leading-tight">115网盘</h1>

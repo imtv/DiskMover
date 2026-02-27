@@ -15,15 +15,17 @@ export default function AdminLayout() {
             <Cloud className="w-8 h-8 text-indigo-500" />
             <h1 className="text-xl font-bold tracking-tight">管理后台</h1>
           </div>
-          <div className="flex items-center gap-2 md:hidden">
-            <Link to="/" className="p-2 text-zinc-400 hover:text-zinc-100 transition-colors">
-              <ArrowLeft className="w-5 h-5" />
+          <div className="flex items-center gap-1 md:hidden">
+            <Link to="/" className="flex items-center gap-1 p-1.5 text-zinc-400 hover:text-zinc-100 transition-colors">
+              <ArrowLeft className="w-4 h-4" />
+              <span className="text-sm font-medium">首页</span>
             </Link>
             <button 
               onClick={logout}
-              className="p-2 text-zinc-400 hover:text-red-400 transition-colors"
+              className="flex items-center gap-1 p-1.5 text-zinc-400 hover:text-red-400 transition-colors"
             >
-              <LogOut className="w-5 h-5" />
+              <LogOut className="w-4 h-4" />
+              <span className="text-sm font-medium">退出</span>
             </button>
           </div>
         </div>
