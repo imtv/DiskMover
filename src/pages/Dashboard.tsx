@@ -194,8 +194,8 @@ export default function Dashboard() {
     <div className="space-y-4 bg-zinc-950 min-h-screen px-4 py-3 sm:p-8 dark">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4 sm:px-0">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-900 dark:text-white leading-tight">115网盘</h1>
-          <p className="text-xs sm:text-base text-zinc-600 dark:text-zinc-400">提交 115 分享链接，系统将自动帮您转存并整理</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white leading-tight">115网盘</h1>
+          <p className="text-xs sm:text-base text-zinc-400">提交 115 分享链接，系统将自动帮您转存并整理</p>
         </div>
         <div className="flex items-center gap-3">
 
@@ -203,7 +203,7 @@ export default function Dashboard() {
       </div>
 
       {/* Create Task Form */}
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl p-4 sm:p-6">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-xl p-4 sm:p-6">
         <form onSubmit={handleCreateTask} className="space-y-4 sm:space-y-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="md:col-span-2">
@@ -301,7 +301,7 @@ export default function Dashboard() {
 
       <div className="space-y-4">
         <div className="flex justify-between items-center">
-          <h2 className="text-xl font-semibold text-zinc-900 dark:text-white">历史任务</h2>
+          <h2 className="text-xl font-semibold text-white">历史任务</h2>
           <div className="flex items-center gap-3">
             {isAuthenticated && tasks.length > 0 && (
               <button
@@ -323,7 +323,7 @@ export default function Dashboard() {
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:gap-4">
             {tasks.map((task) => (
-              <div className={`bg-white dark:bg-zinc-900 border rounded-2xl p-4 sm:p-5 shadow-xl transition-colors group ${task.is_pinned ? 'border-amber-500/30 bg-amber-500/5' : 'border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700'}`}>
+              <div className={`bg-zinc-900 border rounded-2xl p-4 sm:p-5 shadow-xl transition-colors group ${task.is_pinned ? 'border-amber-500/30 bg-amber-500/5' : 'border-zinc-800 hover:border-zinc-700'}`}>
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                   <div className="flex items-start gap-4 min-w-0">
                     <div className={`p-3 rounded-xl shrink-0 ${task.is_pinned ? 'bg-amber-500/10 text-amber-400' : 'bg-zinc-800/50 text-indigo-400'}`}>
@@ -331,7 +331,7 @@ export default function Dashboard() {
                     </div>
                     <div className="min-w-0 space-y-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 text-lg truncate">{task.name || '未命名'}</h3>
+                        <h3 className="font-semibold text-zinc-100 text-lg truncate">{task.name || '未命名'}</h3>
                         {task.resource_url && (
                           <a href={task.resource_url} target="_blank" rel="noopener noreferrer" title="查看资源链接">
                             <Film className="w-5 h-5 text-green-400 hover:text-green-300" />
@@ -407,18 +407,18 @@ export default function Dashboard() {
                             }
 
                             return (
-                              <div key={idx} className="flex items-center gap-2 text-xs group">
+                              <div key={idx} className="flex items-center gap-2 text-sm group">
                                 <div className={`shrink-0 transition-colors`}>
-                                  <ActionIcon className={`w-3.5 h-3.5 ${iconColor} ${animate ? 'animate-spin' : ''}`} />
+                                  <ActionIcon className={`w-4 h-4 ${iconColor} ${animate ? 'animate-spin' : ''}`} />
                                 </div>
                                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0 flex-1">
-                                     <span className="text-zinc-500 font-mono">{item.time}</span>
+                                     <span className="text-zinc-500">{item.time}</span>
                                      <span className={`font-medium ${statusColor}`}>
                                         {statusText}
                                      </span>
                                      {item.video_count !== undefined && item.video_count > 0 && (
                                          <span className="text-zinc-400 flex items-center gap-1">
-                                             <Film className="w-3 h-3 text-zinc-500" />
+                                             <Film className="w-3.5 h-3.5 text-zinc-500" />
                                              转存{item.video_count}个视频
                                          </span>
                                      )}
