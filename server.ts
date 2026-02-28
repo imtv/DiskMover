@@ -808,6 +808,106 @@ async function startServer() {
     }
   });
 
+  app.post('/api/tasks/:id/change-category', async (req, res) => {
+    const taskId = parseInt(req.params.id);
+    const { new_category } = req.body;
+    
+    if (!new_category) return res.status(400).json({ success: false, msg: "New category is required" });
+
+    const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId) as any;
+    if (!task) return res.status(404).json({ success: false, msg: "Task not found" });
+
+    if (task.category === new_category) {
+        return res.json({ success: true, msg: "Category is already the same" });
+    }
+
+    const settings = getSettings();
+    const cookie = settings.cookie_115;
+    if (!cookie) return res.status(400).json({ success: false, msg: "Cookie not configured" });
+
+    const log = (msg: string) => {
+        db.prepare('INSERT INTO logs (task_id, message, created_at) VALUES (?, ?, ?)').run(taskId, msg, getCSTNow());
+    };
+
+    log(`[系统] 开始执行分类变更: ${task.category} -> ${new_category}`);
+
+    // Helper to get CID and Path
+    const getCategoryInfo = (cat: string) => {
+        if (cat === 'tv') return { cid: settings.cat_tv_cid, path: settings.cat_tv_path, name: settings.cat_tv_name };
+        if (cat === 'movie') return { cid: settings.cat_movie_cid, path: settings.cat_movie_path, name: settings.cat_movie_name };
+        if (cat === 'variety') return { cid: settings.cat_variety_cid, path: settings.cat_variety_path, name: settings.cat_variety_name };
+        if (cat === 'anime') return { cid: settings.cat_anime_cid, path: settings.cat_anime_path, name: settings.cat_anime_name };
+        if (cat === 'other') return { cid: settings.cat_other_cid, path: settings.cat_other_path, name: settings.cat_other_name };
+        return { cid: '0', path: '', name: '未知' };
+    };
+
+    const oldInfo = getCategoryInfo(task.category);
+    const newInfo = getCategoryInfo(new_category);
+
+    if (oldInfo.cid === '0' || newInfo.cid === '0') {
+        log(`❌ 失败: 分类配置无效 (CID=0)`);
+        return res.status(400).json({ success: false, msg: "Category configuration invalid" });
+    }
+
+    try {
+        // 1. Find the file/folder in the old location
+        log(`正在旧目录 [${oldInfo.name}] 查找: ${task.name}`);
+        const listRes = await service115.getFolderList(cookie, oldInfo.cid, 1000);
+        
+        let targetId = null;
+        if (listRes.success && listRes.list) {
+            const found = listRes.list.find((f: any) => f.name === task.name);
+            if (found) {
+                targetId = found.id;
+                log(`找到目标: ${found.name} (ID: ${targetId})`);
+            }
+        }
+
+        if (!targetId) {
+            log(`❌ 未在旧分类下找到对应文件/文件夹，仅更新数据库记录`);
+            // Just update DB
+            db.prepare('UPDATE tasks SET category = ?, updated_at = ? WHERE id = ?').run(new_category, getCSTNow(), taskId);
+            return res.json({ success: true, msg: "File not found in 115, only DB updated" });
+        }
+
+        // 2. Move to new location
+        log(`正在移动到新目录 [${newInfo.name}]...`);
+        const moveRes = await service115.moveFiles(cookie, [targetId], newInfo.cid);
+        
+        if (!moveRes.success) {
+            log(`❌ 移动失败: ${moveRes.msg}`);
+            return res.status(500).json({ success: false, msg: moveRes.msg });
+        }
+        log(`✅ 移动成功`);
+
+        // 3. Update DB
+        db.prepare('UPDATE tasks SET category = ?, updated_at = ? WHERE id = ?').run(new_category, getCSTNow(), taskId);
+
+        // 4. Scan OpenList (Old Path -> Remove index, New Path -> Add index)
+        // Scan old path
+        if (oldInfo.path) {
+            let oldFullPath = oldInfo.path.endsWith('/') ? oldInfo.path + task.name : oldInfo.path + '/' + task.name;
+            const scanPath = applyPathMapping(oldFullPath, settings);
+            log(`[OpenList] 扫描旧路径 (清理索引): ${scanPath}`);
+            refreshOpenListPath(scanPath, taskId);
+        }
+
+        // Scan new path
+        if (newInfo.path) {
+            let newFullPath = newInfo.path.endsWith('/') ? newInfo.path + task.name : newInfo.path + '/' + task.name;
+            const scanPath = applyPathMapping(newFullPath, settings);
+            log(`[OpenList] 扫描新路径 (建立索引): ${scanPath}`);
+            refreshOpenListPath(scanPath, taskId);
+        }
+
+        res.json({ success: true });
+
+    } catch (e: any) {
+        log(`❌ 异常: ${e.message}`);
+        res.status(500).json({ success: false, msg: e.message });
+    }
+  });
+
   app.post('/api/tasks/:id/run', (req, res) => {
     const taskId = parseInt(req.params.id);
     executeTask(taskId, false);

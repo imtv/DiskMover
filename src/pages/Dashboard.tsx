@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Trash2, FileText, FolderOpen, CheckCircle2, Clock, XCircle, RefreshCw, Link as LinkIcon, Pin, ScanText, Logs, Sun, Moon, Film, PlusCircle, Timer, AlertCircle } from 'lucide-react';
+import { Play, Trash2, FileText, FolderOpen, CheckCircle2, Clock, XCircle, RefreshCw, Link as LinkIcon, Pin, ScanText, Logs, Sun, Moon, Film, PlusCircle, Timer, AlertCircle, ArrowRightLeft } from 'lucide-react';
 import { formatInTimeZone } from 'date-fns-tz';
 import { useAuth } from '../context/AuthContext';
 
@@ -44,6 +44,8 @@ export default function Dashboard() {
   const [isResourceModalOpen, setIsResourceModalOpen] = useState(false);
   const [newResourceUrl, setNewResourceUrl] = useState('');
 
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [targetCategory, setTargetCategory] = useState('');
 
   useEffect(() => {
     fetchTasks();
@@ -180,6 +182,37 @@ export default function Dashboard() {
 
     setIsResourceModalOpen(false);
     fetchTasks();
+  };
+
+  const handleOpenCategoryModal = (task: Task) => {
+    setCurrentTaskId(task.id);
+    setTargetCategory(task.category);
+    setIsCategoryModalOpen(true);
+  };
+
+  const handleChangeCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentTaskId || !targetCategory) return;
+
+    // Optimistically close modal
+    setIsCategoryModalOpen(false);
+
+    // Trigger API
+    const res = await fetch(`/api/tasks/${currentTaskId}/change-category`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ new_category: targetCategory }),
+    });
+    
+    const data = await res.json();
+    if (data.success) {
+        // Refresh tasks
+        fetchTasks();
+        // Open logs to show progress
+        handleViewLogs(currentTaskId);
+    } else {
+        alert('转移失败: ' + data.msg);
+    }
   };
 
   const handleClearAllTasks = async () => {
@@ -488,6 +521,15 @@ export default function Dashboard() {
                     >
                       <LinkIcon className="w-5 h-5" />
                     </button>
+                    {isAuthenticated && (
+                        <button
+                            onClick={() => handleOpenCategoryModal(task)}
+                            className="p-2 text-zinc-400 hover:text-cyan-400 hover:bg-cyan-400/10 rounded-lg transition-colors"
+                            title="转移分类"
+                        >
+                            <ArrowRightLeft className="w-5 h-5" />
+                        </button>
+                    )}
                     {!task.resource_url && isAuthenticated && (
                       <button
                         onClick={() => handleOpenResourceModal(task)}
@@ -638,6 +680,66 @@ export default function Dashboard() {
                   className="px-6 py-2 rounded-xl bg-green-600 hover:bg-green-500 text-white font-medium transition-colors shadow-lg shadow-green-500/20"
                 >
                   保存
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Change Category Modal */}
+      {isCategoryModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+            <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between shrink-0">
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                <ArrowRightLeft className="w-5 h-5 text-cyan-400" />
+                转移分类
+              </h3>
+              <button onClick={() => setIsCategoryModalOpen(false)} className="text-zinc-400 hover:text-white transition-colors">
+                <XCircle className="w-6 h-6" />
+              </button>
+            </div>
+            <form onSubmit={handleChangeCategory} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-zinc-400 mb-2">选择新分类</label>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { id: 'tv', label: '电视剧' },
+                    { id: 'movie', label: '电影' },
+                    { id: 'variety', label: '综艺' },
+                    { id: 'anime', label: '动漫' },
+                    { id: 'other', label: '其他' }
+                  ].map((cat) => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setTargetCategory(cat.id)}
+                      className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                        targetCategory === cat.id
+                          ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-500/20'
+                          : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200'
+                      }`}
+                    >
+                      {cat.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="pt-2 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsCategoryModalOpen(false)}
+                  className="px-4 py-2 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+                >
+                  取消
+                </button>
+                <button
+                  type="submit"
+                  disabled={!targetCategory}
+                  className="px-6 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 disabled:bg-cyan-600/50 text-white font-medium transition-colors shadow-lg shadow-cyan-500/20"
+                >
+                  开始转移
                 </button>
               </div>
             </form>

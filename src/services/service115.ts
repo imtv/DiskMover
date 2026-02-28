@@ -173,6 +173,30 @@ class Service115 {
         }
     }
 
+    async moveFiles(cookie: string, fileIds: string[], targetCid: string) {
+        if (!fileIds || fileIds.length === 0) return { success: true };
+        
+        const params: Record<string, string> = {
+            pid: targetCid
+        };
+        if (Array.isArray(fileIds)) {
+            fileIds.forEach((id, i) => params[`fid[${i}]`] = id);
+        } else {
+            params['fid[0]'] = fileIds;
+        }
+        const postData = qs.stringify(params);
+
+        try {
+            const res = await axios.post("https://webapi.115.com/files/move", postData, {
+                headers: this._getHeaders(cookie)
+            });
+            if (res.data.state) return { success: true };
+            return { success: false, msg: res.data.error || "移动失败" };
+        } catch (e: any) {
+            return { success: false, msg: "移动API异常: " + e.message };
+        }
+    }
+
     async getRecentItems(cookie: string, cid: string, limit = 10) {
         if (limit <= 0) return { success: true, items: [] };
         try {
