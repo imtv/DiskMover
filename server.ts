@@ -323,6 +323,9 @@ async function executeTask(taskId: number, isCron = false, successStatus = 'comp
     const saveResult = await service115.saveFiles(cookie, finalTargetCid, extractShareCode(task.share_url).code, task.share_code, fileIds);
 
     if (saveResult.success) {
+        log(`转存请求发送成功，等待服务器处理...`);
+        await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds for 115 to index
+
         const nowTime = getCSTNow();
         
         // Count videos

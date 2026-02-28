@@ -1,11 +1,17 @@
 import React from 'react';
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Settings, LogOut, Cloud, ArrowLeft } from 'lucide-react';
 
 export default function AdminLayout() {
   const { logout } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    navigate('/');
+    logout();
+  };
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-zinc-950 text-zinc-50">
@@ -21,7 +27,7 @@ export default function AdminLayout() {
               <span className="text-sm font-medium">首页</span>
             </Link>
             <button 
-              onClick={logout}
+              onClick={handleLogout}
               className="flex items-center gap-1 p-1.5 text-zinc-400 hover:text-red-400 transition-colors"
             >
               <LogOut className="w-4 h-4" />
@@ -78,7 +84,7 @@ export default function AdminLayout() {
 
         <div className="hidden md:block p-4 border-t border-zinc-800 mt-auto">
           <button
-            onClick={logout}
+            onClick={handleLogout}
             className="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-zinc-400 hover:bg-zinc-800 hover:text-red-400 transition-colors"
           >
             <LogOut className="w-5 h-5" />

@@ -79,6 +79,17 @@ export default function Dashboard() {
     setEnableCron(data.enable_cron);
   };
 
+  const [newlyAddedTaskId, setNewlyAddedTaskId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (newlyAddedTaskId) {
+      const timer = setTimeout(() => {
+        setNewlyAddedTaskId(null);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [newlyAddedTaskId]);
+
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!category) {
@@ -103,7 +114,7 @@ export default function Dashboard() {
     fetchTasks();
 
     if (data.success && data.id) {
-        handleViewLogs(data.id);
+        setNewlyAddedTaskId(data.id);
     }
   };
 
@@ -142,8 +153,7 @@ export default function Dashboard() {
     
     setIsReplaceModalOpen(false);
     fetchTasks();
-    // Auto open logs
-    handleViewLogs(currentTaskId);
+    setNewlyAddedTaskId(currentTaskId);
   };
 
   const handleOpenResourceModal = (task: Task) => {
@@ -323,7 +333,10 @@ export default function Dashboard() {
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:gap-4">
             {tasks.map((task) => (
-              <div className={`bg-zinc-900 border rounded-2xl p-4 sm:p-5 shadow-xl transition-colors group ${task.is_pinned ? 'border-amber-500/30 bg-amber-500/5' : 'border-zinc-800 hover:border-zinc-700'}`}>
+              <div className={`bg-zinc-900 border rounded-2xl p-4 sm:p-5 shadow-xl transition-all duration-500 group ${
+                task.id === newlyAddedTaskId ? 'border-indigo-500 bg-indigo-500/10 ring-1 ring-indigo-500' :
+                task.is_pinned ? 'border-amber-500/30 bg-amber-500/5' : 'border-zinc-800 hover:border-zinc-700'
+              }`}>
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                   <div className="flex items-start gap-4 min-w-0">
                     <div className={`p-3 rounded-xl shrink-0 ${task.is_pinned ? 'bg-amber-500/10 text-amber-400' : 'bg-zinc-800/50 text-indigo-400'}`}>

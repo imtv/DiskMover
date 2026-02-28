@@ -241,7 +241,7 @@ class Service115 {
                     for (const item of items) {
                         if (item.fid) {
                             const ext = (item.n.split('.').pop() || '').toLowerCase();
-                            if (['mp4', 'mkv', 'avi', 'mov', 'rmvb', 'flv', 'wmv', 'm4v', 'ts', 'iso'].includes(ext)) {
+                            if (['mp4', 'mkv', 'avi', 'mov', 'rmvb', 'flv', 'wmv', 'm4v', 'ts', 'iso', 'm2ts', 'mpg', 'mpeg', 'dat', 'vob', 'webm'].includes(ext)) {
                                 count++;
                             }
                         } else if (item.cid) {
