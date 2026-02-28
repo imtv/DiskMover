@@ -230,8 +230,17 @@ async function executeTask(taskId: number, isCron = false, successStatus = 'comp
   log(`开始执行项目转存: ${task.name || '未命名'}`);
 
   try {
-    let shareInfo = await service115.getShareInfo(cookie, extractShareCode(task.share_url).code, task.share_code);
-    log(`成功读取分享链接: ${shareInfo.shareTitle}`);
+    // Step 0: Check link validity
+    log(`正在检查分享链接有效性...`);
+    let shareInfo;
+    try {
+        shareInfo = await service115.getShareInfo(cookie, extractShareCode(task.share_url).code, task.share_code);
+        log(`链接有效: ${shareInfo.shareTitle}`);
+    } catch (e: any) {
+        log(`链接无效或已过期: ${e.message}`);
+        updateStatus(isCron ? 'pending' : 'error');
+        return;
+    }
 
     const fileIds = shareInfo.fileIds;
 
@@ -328,52 +337,8 @@ async function executeTask(taskId: number, isCron = false, successStatus = 'comp
 
         const nowTime = getCSTNow();
         
-        // Count videos
-        let videoCount = 0;
-        if (finalTargetCid && finalTargetCid !== '0') {
-             // If we created a folder, count inside it.
-             // If we saved to root (single folder case), we need to find that folder.
-             let countCid = finalTargetCid;
-             if (!isMultiFile) {
-                 // Single folder saved to targetCid. We need to find it.
-                 // We already do this later for renaming. Let's move the finding logic up or just do it here.
-                 const recent = await service115.getRecentItems(cookie, targetCid, 20);
-                 if (recent.success && recent.items.length > 0) {
-                     const sharedItemName = shareInfo.list[0].n;
-                     const savedItem = recent.items.find((i: any) => i.name === sharedItemName);
-                     if (savedItem) countCid = savedItem.id;
-                 }
-             }
-             log(`正在统计视频数量 (CID: ${countCid})...`);
-             videoCount = await service115.getFolderVideoCount(cookie, countCid);
-             log(`统计完成: ${videoCount} 个视频`);
-        }
-
-        // Update history
-        const currentTask = db.prepare('SELECT execution_history FROM tasks WHERE id = ?').get(taskId) as any;
-        let history = JSON.parse(currentTask.execution_history || '[]');
-        if (history.length > 0) {
-            const last = history[history.length - 1];
-            last.status = 'completed';
-            last.time = nowTime; // Completion time
-            last.video_count = videoCount;
-            db.prepare('UPDATE tasks SET execution_history = ? WHERE id = ?').run(JSON.stringify(history), taskId);
-        }
-
-        db.prepare("UPDATE tasks SET last_success_date = ?, latest_success_time = ? WHERE id = ?").run(todayStr, nowTime, taskId);
-        
-        // Add current URL to executed list
-        const currentUrls = JSON.parse(task.executed_share_urls || '[]');
-        if (!currentUrls.includes(task.share_url)) {
-            currentUrls.push(task.share_url);
-            db.prepare('UPDATE tasks SET executed_share_urls = ? WHERE id = ?').run(JSON.stringify(currentUrls), taskId);
-        }
-
-        log(`成功保存文件`);
-
-        await new Promise(resolve => setTimeout(resolve, 3000));
-
         // Step 3: Rename if needed (Only if we saved a single folder directly to targetCid)
+        let countCid = finalTargetCid;
         if (!isMultiFile) {
             // We saved a single folder. We need to find it and rename it to task.name
             // Since we deleted the old one, the new one should be the one we just saved.
@@ -388,6 +353,7 @@ async function executeTask(taskId: number, isCron = false, successStatus = 'comp
                 const savedItem = recent.items.find((i: any) => i.name === sharedItemName);
                 
                 if (savedItem) {
+                    countCid = savedItem.id; // Update countCid for later
                     if (savedItem.name !== task.name) {
                         log(`正在重命名: ${savedItem.name} -> ${task.name}`);
                         const renameRes = await service115.renameFile(cookie, savedItem.id, task.name);
@@ -404,11 +370,12 @@ async function executeTask(taskId: number, isCron = false, successStatus = 'comp
         }
 
         // Step 4: OpenList Scan
+        let scanPath = '';
         if (targetPath) {
              let fullPath115 = targetPath.endsWith('/') ? targetPath + task.name : targetPath + '/' + task.name;
              log(`文件保存完整路径: ${fullPath115}`);
 
-             const scanPath = applyPathMapping(fullPath115, settings);
+             scanPath = applyPathMapping(fullPath115, settings);
              log(`开始扫描 OpenList 路径: ${scanPath}`);
 
              const olRes = await refreshOpenListPath(scanPath, taskId); 
@@ -420,6 +387,62 @@ async function executeTask(taskId: number, isCron = false, successStatus = 'comp
         } else {
             log(`未配置分类路径，跳过 OpenList 精确扫描 (仅支持 CID 扫描可能不准确)`);
         }
+
+        // Step 5: Count and Compare (Moved to end)
+        log(`等待 OpenList 索引 (约10秒)...`);
+        await new Promise(resolve => setTimeout(resolve, 10000));
+
+        // Count 115 videos
+        let videoCount115 = 0;
+        if (countCid && countCid !== '0') {
+             log(`正在统计 115 网盘视频数量 (CID: ${countCid})...`);
+             videoCount115 = await service115.getFolderVideoCount(cookie, countCid);
+             log(`115 网盘统计完成: ${videoCount115} 个视频`);
+        }
+
+        // Count OpenList videos
+        let videoCountOL = -1;
+        if (scanPath) {
+            log(`正在统计 OpenList 文件数量 (路径: ${scanPath})...`);
+            videoCountOL = await getOpenListFileCount(scanPath, taskId);
+            if (videoCountOL >= 0) {
+                log(`OpenList 统计完成: ${videoCountOL} 个文件`);
+            } else {
+                log(`OpenList 统计失败或暂无数据`);
+            }
+        }
+
+        // Compare
+        if (videoCountOL >= 0) {
+            if (videoCount115 === videoCountOL) {
+                log(`✅ 核对一致: 115 [${videoCount115}] == OpenList [${videoCountOL}]`);
+            } else {
+                log(`⚠️ 核对不一致: 115 [${videoCount115}] vs OpenList [${videoCountOL}] (OpenList 可能仍在扫描中)`);
+            }
+        }
+
+        // Update history
+        const currentTask = db.prepare('SELECT execution_history FROM tasks WHERE id = ?').get(taskId) as any;
+        let history = JSON.parse(currentTask.execution_history || '[]');
+        if (history.length > 0) {
+            const last = history[history.length - 1];
+            last.status = 'completed';
+            last.time = nowTime; // Completion time
+            last.video_count = videoCount115;
+            last.details = videoCountOL >= 0 ? `115:${videoCount115} / OL:${videoCountOL}` : `115:${videoCount115}`;
+            db.prepare('UPDATE tasks SET execution_history = ? WHERE id = ?').run(JSON.stringify(history), taskId);
+        }
+
+        db.prepare("UPDATE tasks SET last_success_date = ?, latest_success_time = ? WHERE id = ?").run(todayStr, nowTime, taskId);
+        
+        // Add current URL to executed list
+        const currentUrls = JSON.parse(task.executed_share_urls || '[]');
+        if (!currentUrls.includes(task.share_url)) {
+            currentUrls.push(task.share_url);
+            db.prepare('UPDATE tasks SET executed_share_urls = ? WHERE id = ?').run(JSON.stringify(currentUrls), taskId);
+        }
+
+        log(`成功保存文件`);
       
         updateStatus(isCron ? 'pending' : successStatus);
         log(`任务执行完成`);
@@ -544,6 +567,53 @@ async function refreshOpenListPath(path: string, taskId?: number) {
     } catch (e: any) {
         return { success: false, msg: "请求 OpenList 异常: " + e.message };
     }
+}
+
+async function getOpenListFileCount(path: string, taskId?: number): Promise<number> {
+    const settings = getSettings();
+    if (!settings.ol_url || !settings.ol_token) return -1;
+
+    // Ensure path starts with / if not
+    if (!path.startsWith('/')) path = '/' + path;
+    path = path.replace(/\/\//g, '/');
+
+    const baseUrl = settings.ol_url.replace(/\/$/, "");
+    const headers = {
+        'Authorization': settings.ol_token,
+        'Content-Type': 'application/json'
+    };
+
+    const countFiles = async (currentPath: string): Promise<number> => {
+        try {
+            const r = await axios.post(`${baseUrl}/api/fs/list`, {
+                path: currentPath,
+                password: "",
+                page: 1,
+                per_page: 0,
+                refresh: false
+            }, { headers, timeout: 10000 });
+            
+            if (r.data.code !== 200 || !r.data.data || !r.data.data.content) return 0;
+            
+            let c = 0;
+            for (const item of r.data.data.content) {
+                if (item.is_dir) {
+                    c += await countFiles(`${currentPath}/${item.name}`.replace(/\/\//g, '/'));
+                } else {
+                    const ext = (item.name.split('.').pop() || '').toLowerCase();
+                    if (['mp4', 'mkv', 'avi', 'mov', 'rmvb', 'flv', 'wmv', 'm4v', 'ts', 'iso', 'm2ts', 'mpg', 'mpeg', 'dat', 'vob', 'webm', 'strm'].includes(ext)) {
+                        c++;
+                    }
+                }
+            }
+            return c;
+        } catch (e) {
+            console.error(`[OpenList] Count error at ${currentPath}:`, e);
+            return 0;
+        }
+    };
+
+    return await countFiles(path);
 }
 
 
