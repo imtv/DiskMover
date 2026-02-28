@@ -83,12 +83,18 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (newlyAddedTaskId) {
+      // Scroll to element
+      const element = document.getElementById(`task-${newlyAddedTaskId}`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+
       const timer = setTimeout(() => {
         setNewlyAddedTaskId(null);
       }, 2000);
       return () => clearTimeout(timer);
     }
-  }, [newlyAddedTaskId]);
+  }, [newlyAddedTaskId, tasks]);
 
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -333,7 +339,10 @@ export default function Dashboard() {
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:gap-4">
             {tasks.map((task) => (
-              <div className={`bg-zinc-900 border rounded-2xl p-4 sm:p-5 shadow-xl transition-all duration-500 group ${
+              <div 
+                id={`task-${task.id}`}
+                key={task.id}
+                className={`bg-zinc-900 border rounded-2xl p-4 sm:p-5 shadow-xl transition-all duration-500 group ${
                 task.id === newlyAddedTaskId ? 'border-indigo-500 bg-indigo-500/10 ring-1 ring-indigo-500' :
                 task.is_pinned ? 'border-amber-500/30 bg-amber-500/5' : 'border-zinc-800 hover:border-zinc-700'
               }`}>
